@@ -1,133 +1,70 @@
 "use client"
 
-import { motion } from "framer-motion"
-import { useState } from "react"
-import { ChevronDown } from "lucide-react"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 const faqs = [
   {
-    question: "What is LeLo and how does it work?",
+    question: "What is HeHo?",
     answer:
-      "LeLo is a comprehensive SaaS platform designed to streamline your business operations. It combines project management, team collaboration, analytics, and automation tools in one unified dashboard. Simply sign up, invite your team, and start organizing your workflows with our intuitive interface.",
+      "HeHo is a no-code platform that allows you to build AI chatbots connected to your own data. You can integrate it with your Supabase database, upload project context, and deploy a chatbot that understands your business.",
   },
   {
-    question: "Can I try LeLo before committing to a paid plan?",
+    question: "What AI models can I use?",
     answer:
-      "We offer a 14-day free trial for all our plans. No credit card required. You'll have full access to all features during the trial period, and you can upgrade or cancel anytime.",
+      "HeHo provides access to over 35 free AI models from OpenRouter, including popular models like Llama, Mistral, and Gemma. You can choose the model that best suits your needs and switch at any time.",
   },
   {
-    question: "How secure is my data with LeLo?",
+    question: "How does the Supabase integration work?",
     answer:
-      "Security is our top priority. We use bank-level encryption, comply with SOC 2 Type II standards, and offer features like two-factor authentication, SSO integration, and regular security audits. Your data is stored in secure, redundant data centers with 99.9% uptime guarantee.",
+      "You can connect your Supabase project to HeHo by providing your credentials. The AI can then be granted permissions to read, write, and even create tables in your database, allowing it to perform autonomous actions based on user conversations.",
   },
   {
-    question: "Can I integrate LeLo with my existing tools?",
+    question: "Is my data secure?",
     answer:
-      "Yes! LeLo integrates with over 100+ popular tools including Slack, Google Workspace, Microsoft 365, Salesforce, Zapier, and many more. Our API also allows for custom integrations to fit your specific workflow needs.",
+      "Yes, your data is secure. We use industry-standard encryption and security practices. For Supabase integration, you have fine-grained control over the AI's database permissions, ensuring it only accesses what you allow.",
   },
   {
-    question: "What kind of support do you provide?",
+    question: "What happens if I exceed my plan's limits?",
     answer:
-      "We provide comprehensive support including email support for all plans, priority support for Professional plans, and 24/7 dedicated support for Enterprise customers. We also offer extensive documentation, video tutorials, and webinar training sessions.",
+      "Our free plan includes 10,000 messages per month. If you exceed this limit, we will notify you. You will have the option to upgrade to a paid plan to continue using the service without interruption.",
   },
   {
-    question: "Can I change my plan anytime?",
+    question: "Can I customize the chatbot's appearance?",
     answer:
-      "Yes, you can upgrade or downgrade your plan at any time. When you upgrade, you'll be charged the prorated difference immediately. When you downgrade, the change will take effect at your next billing cycle, and you'll continue to have access to your current plan's features until then.",
-  },
-  {
-    question: "Do you offer refunds?",
-    answer:
-      "We offer a 30-day money-back guarantee for all paid plans. If you're not satisfied with LeLo within the first 30 days of your subscription, contact our support team for a full refund.",
-  },
-  {
-    question: "Is there a limit on the number of projects or users?",
-    answer:
-      "Limits depend on your plan. Starter plans support up to 5 users and 10 projects, Professional plans support up to 25 users and unlimited projects, while Enterprise plans offer unlimited users and projects. Check our pricing page for detailed information.",
+      "Currently, we are focused on providing a powerful backend and API for your chatbots. While there are some basic customization options, advanced styling is not yet available. However, you can use our API to build your own custom chat interface.",
   },
 ]
 
-export function FAQSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null)
-
-  const toggleFAQ = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index)
-  }
-
+export function FaqSection() {
   return (
     <section id="faq" className="py-20 px-4 bg-background">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto">
         <div className="text-center mb-16">
-          <motion.h2
-            className="text-4xl font-bold text-white mb-4"
-            style={{ fontFamily: "var(--font-playfair)" }}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
+          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
             Frequently Asked Questions
-          </motion.h2>
-          <motion.p
-            className="text-xl text-gray-300 max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            viewport={{ once: true }}
-          >
-            Everything you need to know about LeLo. Can't find what you're looking for? Contact our support team.
-          </motion.p>
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Find answers to common questions about HeHo's AI chatbot builder.
+          </p>
         </div>
 
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <motion.div
-              key={index}
-              className="border border-border/20 rounded-lg bg-card/50 backdrop-blur-sm"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              viewport={{ once: true }}
-            >
-              <button
-                className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-white/5 transition-colors rounded-lg"
-                onClick={() => toggleFAQ(index)}
-              >
-                <span className="text-lg font-medium text-white pr-4">{faq.question}</span>
-                <ChevronDown
-                  className={`h-5 w-5 text-gray-400 transition-transform flex-shrink-0 ${
-                    openIndex === index ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              <motion.div
-                initial={false}
-                animate={{
-                  height: openIndex === index ? "auto" : 0,
-                  opacity: openIndex === index ? 1 : 0,
-                }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="overflow-hidden"
-              >
-                <div className="px-6 pb-4">
-                  <p className="text-gray-300 leading-relaxed">{faq.answer}</p>
-                </div>
-              </motion.div>
-            </motion.div>
+        <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto">
+          {faqs.map((faq, idx) => (
+            <AccordionItem key={idx} value={`item-${idx}`}>
+              <AccordionTrigger className="text-left text-lg font-semibold">
+                {faq.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {faq.answer}
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
-
-        <motion.div
-          className="text-center mt-12"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          viewport={{ once: true }}
-        >
-          
-          
-        </motion.div>
+        </Accordion>
       </div>
     </section>
   )
