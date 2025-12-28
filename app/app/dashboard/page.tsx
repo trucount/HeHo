@@ -72,15 +72,18 @@ export default function DashboardPage() {
         setChatbots(chatbotsData || [])
 
         const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-        const { data: usageData } = await supabase
+        const { data: usageData, error: usageError } = await supabase
           .from('usage')
           .select('messages, tokens')
           .eq('user_id', currentUser.id)
           .eq('date', today)
-          .single()
 
-        if (usageData) {
-          setUsage(usageData)
+        if (usageError) throw usageError
+
+        if (usageData && usageData.length > 0) {
+          const totalMessages = usageData.reduce((acc, item) => acc + item.messages, 0)
+          const totalTokens = usageData.reduce((acc, item) => acc + item.tokens, 0)
+          setUsage({ messages: totalMessages, tokens: totalTokens })
         }
       } catch (err) {
         console.error(err)
@@ -127,7 +130,7 @@ export default function DashboardPage() {
           <div>
             <h2 className='text-lg font-semibold text-foreground'>Your Plan</h2>
             <p className='text-sm text-muted-foreground'>
-              Free tier - 1 chatbot, 10K messages/month
+              Free tier - 1 chatbot, 100 messages/day, 10K tokens/day
             </p>
           </div>
           <Badge className='bg-black text-white border border-white/20'>
@@ -158,7 +161,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <p className='text-3xl font-bold text-foreground'>
-                {usage.messages}
+                {usage.messages} / 100
               </p>
             </CardContent>
           </Card>
@@ -166,12 +169,12 @@ export default function DashboardPage() {
           <Card className='border-border/50 bg-card/50'>
             <CardHeader className='pb-3'>
               <CardTitle className='text-sm font-medium text-muted-foreground'>
-                Tokens Used
+                Tokens Used Today
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className='text-3xl font-bold text-foreground'>
-                {usage.tokens} / 10K
+                {usage.tokens} / 10000
               </p>
             </CardContent>
           </Card>

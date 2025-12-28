@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { Card } from "./ui/card"
 import { Zap, Database, Mail, FileText, Lock, MessageCircle } from "lucide-react"
@@ -42,7 +42,7 @@ export function FeaturesSection() {
       <div className="container mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">Powerful Features</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-white max-w-2xl mx-auto">
             Everything you need to build and deploy AI chatbots connected to your data
           </p>
         </div>
@@ -57,7 +57,7 @@ export function FeaturesSection() {
               >
                 <Icon className="h-8 w-8 mb-4 text-white" />
                 <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm">{feature.description}</p>
+                <p className="text-white text-sm">{feature.description}</p>
               </Card>
             )
           })}
