@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import type React from "react"
-import { motion } from "framer-motion"
-import { AnimatedGradient } from "@/components/ui/animated-gradient-with-svg"
+import type React from 'react'
+import { motion } from 'framer-motion'
+import AnimatedGradientWithSvg from "@/components/ui/animated-gradient-with-svg"
 
 interface BentoCardProps {
   title: string
@@ -39,7 +39,7 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
         filter: "url(#noise)",
       }}
     >
-      <AnimatedGradient colors={colors} speed={0.05} blur="medium" />
+      <AnimatedGradientWithSvg colors={colors} speed={0.05} blur="medium" />
 
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none">
         <div
