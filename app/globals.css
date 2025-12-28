@@ -5,11 +5,11 @@
 
 :root {
   /* Black and white theme */
-  --background: #0f0f0f;
+  --background: #000000;
   --foreground: #ffffff;
-  --card: #1a1a1a;
+  --card: #101010;
   --card-foreground: #ffffff;
-  --popover: #1a1a1a;
+  --popover: #101010;
   --popover-foreground: #ffffff;
   --primary: #000000;
   --primary-foreground: #ffffff;
@@ -41,9 +41,9 @@
 }
 
 .dark {
-  --background: #0f0f0f;
+  --background: #000000;
   --foreground: #ffffff;
-  --card: #1a1a1a;
+  --card: #101010;
   --card-foreground: #ffffff;
   --primary: #000000;
   --primary-foreground: #ffffff;
