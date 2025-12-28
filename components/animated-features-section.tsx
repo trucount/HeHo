@@ -71,19 +71,19 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
       </div>
 
       <motion.div
-        className="relative z-10 p-3 sm:p-5 md:p-8 text-foreground backdrop-blur-sm h-full flex flex-col justify-center"
+        className="relative z-10 p-3 sm:p-5 md:p-8 backdrop-blur-sm h-full flex flex-col justify-center"
         variants={container}
         initial="hidden"
         animate="show"
       >
-        <motion.h3 className="text-sm sm:text-base md:text-lg text-foreground mb-2" variants={item}>
+        <motion.h3 className="text-sm sm:text-base md:text-lg mb-2" variants={item} style={{ color: 'white' }}>
           {title}
         </motion.h3>
-        <motion.p className="text-2xl sm:text-4xl md:text-5xl font-medium mb-4 text-foreground" variants={item}>
+        <motion.p className="text-2xl sm:text-4xl md:text-5xl font-medium mb-4" variants={item} style={{ color: 'white' }}>
           {value}
         </motion.p>
         {subtitle && (
-          <motion.p className="text-sm text-muted-foreground" variants={item}>
+          <motion.p className="text-sm" variants={item} style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
             {subtitle}
           </motion.p>
         )}
@@ -144,10 +144,10 @@ export function AnimatedFeaturesSection() {
 
       <div className="container mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-foreground mb-4" style={{ fontFamily: "var(--font-playfair)" }}>
+          <h2 className="text-4xl font-bold text-white mb-4" style={{ fontFamily: "var(--font-playfair)" }}>
             Powerful Features
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             Everything you need to build and deploy AI chatbots connected to your data
           </p>
         </div>
