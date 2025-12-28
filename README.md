@@ -1,2 +1,2 @@
-HeHO - By Founder of Sparrow AI Solutions
+HeHO - By Founder of Sparrow AI Solutions.
 
