@@ -25,7 +25,7 @@ export function HeroSection() {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground mb-8 text-balance max-w-2xl mx-auto">
-            Powered by OpenRouter • Connected to Supabase • Designed by Sparrow
+            Build AI Chatbots That Understand Your Project
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
@@ -44,16 +44,6 @@ export function HeroSection() {
                 Try Demo
               </Button>
             </Link>
-          </div>
-
-          {/* Powering the best teams section */}
-          <div className="mt-16">
-            <p className="text-sm text-muted-foreground mb-6">Powering the best teams</p>
-            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
-              <div className="text-muted-foreground font-semibold">Sparrow</div>
-              <div className="text-muted-foreground font-semibold">OpenRouter</div>
-              <div className="text-muted-foreground font-semibold">Supabase</div>
-            </div>
           </div>
         </div>
       </div>

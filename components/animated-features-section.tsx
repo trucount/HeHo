@@ -3,6 +3,7 @@
 import type React from 'react'
 import { motion } from 'framer-motion'
 import AnimatedGradientWithSvg from "@/components/ui/animated-gradient-with-svg"
+import { cn } from '@/lib/utils'
 
 interface BentoCardProps {
   title: string
@@ -10,9 +11,10 @@ interface BentoCardProps {
   subtitle?: string
   colors: string[]
   delay: number
+  className?: string
 }
 
-const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, delay }) => {
+const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, delay, className }) => {
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -31,7 +33,7 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
 
   return (
     <motion.div
-      className="relative overflow-hidden h-full bg-black rounded-lg border border-border/20 group min-h-[300px]"
+      className={cn("relative overflow-hidden h-full bg-black rounded-lg border border-border/20 group min-h-[300px]", className)}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay }}
@@ -69,19 +71,19 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
       </div>
 
       <motion.div
-        className="relative z-10 p-3 sm:p-5 md:p-8 text-foreground backdrop-blur-sm h-full flex flex-col justify-center"
+        className="relative z-10 p-3 sm:p-5 md:p-8 text-white backdrop-blur-sm h-full flex flex-col justify-center"
         variants={container}
         initial="hidden"
         animate="show"
       >
-        <motion.h3 className="text-sm sm:text-base md:text-lg text-foreground mb-2" variants={item}>
+        <motion.h3 className="text-sm sm:text-base md:text-lg text-white mb-2" variants={item}>
           {title}
         </motion.h3>
-        <motion.p className="text-2xl sm:text-4xl md:text-5xl font-medium mb-4 text-foreground" variants={item}>
+        <motion.p className="text-2xl sm:text-4xl md:text-5xl font-medium mb-4 text-white" variants={item}>
           {value}
         </motion.p>
         {subtitle && (
-          <motion.p className="text-sm text-foreground/80" variants={item}>
+          <motion.p className="text-sm text-white/80" variants={item}>
             {subtitle}
           </motion.p>
         )}
@@ -96,18 +98,13 @@ const features = [
         value: "35+ Models",
         subtitle: "Access to 35+ free models from OpenRouter including Llama, Mistral, Gemma, and more.",
         colors: ["#1a1a1a", "#2a2a2a", "#1f1f1f"],
+        colSpan: "md:col-span-2",
     },
     {
         title: "Supabase Integration",
         value: "Autonomous DB",
         subtitle: "Connect your Supabase database and let AI read, write, and create tables autonomously.",
         colors: ["#151515", "#252525", "#1d1d1d"],
-    },
-    {
-        title: "Email Verification",
-        value: "Secure Auth",
-        subtitle: "Secure authentication with email verification before accessing your chatbot.",
-        colors: ["#1c1c1c", "#2c2c2c", "#181818"],
     },
     {
         title: "Project Context",
@@ -164,6 +161,7 @@ export function AnimatedFeaturesSection() {
               subtitle={feature.subtitle}
               colors={feature.colors}
               delay={0.2 * (i + 1)}
+              className={(feature as any).colSpan}
             />
           ))}
         </div>

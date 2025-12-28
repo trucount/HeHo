@@ -16,7 +16,7 @@ export default function AboutPage() {
             <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 text-balance">About HeHo</h1>
             <p className="text-xl text-muted-foreground mb-8">
               HeHo is an open-source AI chatbot builder that empowers teams to create intelligent, context-aware
-              chatbots without writing code.
+              chatbots without writing code. Our mission is to democratize AI, making it accessible for developers, product teams, and businesses of all sizes to build powerful chatbot experiences.
             </p>
           </div>
 
@@ -25,12 +25,12 @@ export default function AboutPage() {
             <div>
               <h2 className="text-3xl font-bold text-foreground mb-4">Our Mission</h2>
               <p className="text-muted-foreground mb-4">
-                We believe that AI should be accessible to everyone. Developers, product teams, and business users
-                should be able to build intelligent chatbots without deep machine learning expertise.
+                We believe that AI should be a tool for empowerment, not a black box accessible only to a select few. Developers, product teams, and business users
+                should be able to build intelligent chatbots without deep machine learning expertise. HeHo was born from this vision, providing an intuitive platform to bridge the gap between complex AI models and real-world business applications.
               </p>
               <p className="text-muted-foreground">
                 HeHo makes it simple to connect AI models to your data, creating chatbots that truly understand your
-                business context.
+                business context. Whether you're a startup looking to automate customer support or a large enterprise seeking to build internal knowledge bases, HeHo provides the tools to build, deploy, and manage AI chatbots with ease.
               </p>
             </div>
 
@@ -40,19 +40,19 @@ export default function AboutPage() {
                 <li className="flex items-start gap-3">
                   <span className="text-primary font-bold mt-1">→</span>
                   <span className="text-muted-foreground">
-                    <strong>Free & Open:</strong> Built on free OpenRouter models with no vendor lock-in
+                    <strong>Free & Open:</strong> We are committed to an open-source model, built on free OpenRouter models with no vendor lock-in. This means you have the freedom to innovate and customize without constraints.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-primary font-bold mt-1">→</span>
                   <span className="text-muted-foreground">
-                    <strong>Data First:</strong> Your data stays in your Supabase database
+                    <strong>Data First & Secure:</strong> Your data is your most valuable asset. With HeHo, your data stays in your Supabase database, ensuring you have full control and ownership. We provide fine-grained permissions to control exactly what the AI can access.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-primary font-bold mt-1">→</span>
                   <span className="text-muted-foreground">
-                    <strong>No Code:</strong> Create chatbots with a simple form, no programming required
+                    <strong>No Code, All Power:</strong> Create sophisticated chatbots with a simple form, no programming required. Our intuitive interface allows you to define the chatbot's context, connect to your database, and deploy in minutes.
                   </span>
                 </li>
               </ul>
@@ -61,7 +61,8 @@ export default function AboutPage() {
 
           {/* Built by Section */}
           <Card className="max-w-2xl mx-auto p-8 border-primary/30 bg-primary/5 mb-16">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Built with</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Built with the Best</h2>
+            <p className="text-muted-foreground mb-6">HeHo is built on a foundation of powerful, developer-focused technologies:</p>
             <div className="flex flex-wrap gap-4">
               <div className="bg-background/50 px-4 py-2 rounded-lg">
                 <p className="font-semibold text-foreground">Sparrow</p>
@@ -69,18 +70,19 @@ export default function AboutPage() {
               </div>
               <div className="bg-background/50 px-4 py-2 rounded-lg">
                 <p className="font-semibold text-foreground">OpenRouter</p>
-                <p className="text-sm text-muted-foreground">AI Models</p>
+                <p className="text-sm text-muted-foreground">Access to 35+ AI Models</p>
               </div>
               <div className="bg-background/50 px-4 py-2 rounded-lg">
                 <p className="font-semibold text-foreground">Supabase</p>
-                <p className="text-sm text-muted-foreground">Database & Auth</p>
+                <p className="text-sm text-muted-foreground">Scalable Database & Auth</p>
               </div>
             </div>
           </Card>
 
           {/* CTA */}
           <div className="text-center mb-20">
-            <h2 className="text-3xl font-bold text-foreground mb-6">Ready to build your first chatbot?</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-6">Ready to build your first AI chatbot?</h2>
+            <p className="text-muted-foreground mb-8 max-w-xl mx-auto">Join our growing community of builders and innovators. Get started for free and see what you can create.</p>
             <Link href="/signup">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground group">
                 Get Started Free
