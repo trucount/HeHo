@@ -190,13 +190,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Mobile notice */}
-        <Alert className="border-border/50 bg-card/30">
-          <AlertCircle className="h-4 w-4 text-foreground" />
-          <AlertDescription className="text-foreground">
-            HeHo is currently available on desktop only. For the best experience, use a desktop or tablet device.
-          </AlertDescription>
-        </Alert>
       </div>
     </div>
   )
