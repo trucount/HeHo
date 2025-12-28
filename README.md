@@ -1,2 +1,2 @@
-HeHO - By Sparrow AI Solutions
+HeHO - By Sparrow AI Solutions.
 
