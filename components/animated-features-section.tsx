@@ -31,7 +31,7 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
 
   return (
     <motion.div
-      className="relative overflow-hidden h-full bg-black rounded-lg border border-border/20 group"
+      className="relative overflow-hidden h-full bg-black rounded-lg border border-border/20 group min-h-[300px]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay }}
@@ -90,6 +90,45 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
   )
 }
 
+const features = [
+    {
+        title: "Free AI Models",
+        value: "35+ Models",
+        subtitle: "Access to 35+ free models from OpenRouter including Llama, Mistral, Gemma, and more.",
+        colors: ["#1a1a1a", "#2a2a2a", "#1f1f1f"],
+    },
+    {
+        title: "Supabase Integration",
+        value: "Autonomous DB",
+        subtitle: "Connect your Supabase database and let AI read, write, and create tables autonomously.",
+        colors: ["#151515", "#252525", "#1d1d1d"],
+    },
+    {
+        title: "Email Verification",
+        value: "Secure Auth",
+        subtitle: "Secure authentication with email verification before accessing your chatbot.",
+        colors: ["#1c1c1c", "#2c2c2c", "#181818"],
+    },
+    {
+        title: "Project Context",
+        value: "Business Logic",
+        subtitle: "Upload detailed project descriptions so AI understands your full business context.",
+        colors: ["#171717", "#272727", "#1b1b1b"],
+    },
+    {
+        title: "Database Permissions",
+        value: "Fine-grained Control",
+        subtitle: "Fine-grained control over what AI can read, write, create, and access in your database.",
+        colors: ["#131313", "#232323", "#191919"],
+    },
+    {
+        title: "Real-time Chat",
+        value: "Direct Chat",
+        subtitle: "Chat directly with your AI chatbot powered by your OpenRouter API key.",
+        colors: ["#1a1a1a", "#2a2a2a", "#1f1f1f"],
+    }
+]
+
 export function AnimatedFeaturesSection() {
   return (
     <section id="features" className="py-20 px-4 bg-black">
@@ -112,52 +151,21 @@ export function AnimatedFeaturesSection() {
             Powerful Features
           </h2>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Everything you need to take your business to the next level
+            Everything you need to build and deploy AI chatbots connected to your data
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
-          <div className="md:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feature, i) => (
             <BentoCard
-              title="Advanced Analytics"
-              value="Real-time Insights"
-              subtitle="Get deep insights into your business performance with comprehensive analytics and reporting"
-              colors={["#1a1a1a", "#2a2a2a", "#1f1f1f"]}
-              delay={0.2}
+              key={feature.title}
+              title={feature.title}
+              value={feature.value}
+              subtitle={feature.subtitle}
+              colors={feature.colors}
+              delay={0.2 * (i + 1)}
             />
-          </div>
-          <BentoCard
-            title="Team Collaboration"
-            value="Seamless"
-            subtitle="Work together efficiently"
-            colors={["#151515", "#252525", "#1d1d1d"]}
-            delay={0.4}
-          />
-          <BentoCard
-            title="Lightning Performance"
-            value="99.9%"
-            subtitle="Uptime guaranteed"
-            colors={["#1c1c1c", "#2c2c2c", "#181818"]}
-            delay={0.6}
-          />
-          <div className="md:col-span-2">
-            <BentoCard
-              title="Enterprise Security"
-              value="Bank-level"
-              subtitle="End-to-end encryption with compliance certifications for maximum security"
-              colors={["#171717", "#272727", "#1b1b1b"]}
-              delay={0.8}
-            />
-          </div>
-          <div className="md:col-span-3">
-            <BentoCard
-              title="Global Scale & Mobile Ready"
-              value="Worldwide"
-              subtitle="Deploy globally with our infrastructure and access your dashboard anywhere with responsive design"
-              colors={["#131313", "#232323", "#191919"]}
-              delay={1}
-            />
-          </div>
+          ))}
         </div>
       </div>
     </section>

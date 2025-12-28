@@ -11,7 +11,10 @@ export function MobileDetector() {
 
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      const isMobileDevice =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
       setIsMobile(isMobileDevice)
     }
 
@@ -30,11 +33,12 @@ export function MobileDetector() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:hidden">
-      <Alert className="border-amber-500/50 bg-amber-500/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm md:hidden">
+      <Alert className="max-w-md border-amber-500/50 bg-amber-500/10">
         <AlertCircle className="h-4 w-4 text-amber-600" />
         <AlertDescription className="text-amber-700">
-          HeHo is optimized for desktop. For the best experience, please use a desktop or tablet.
+          HeHo app does not run on mobile size screens. Please use a desktop
+          computer to access the app.
         </AlertDescription>
       </Alert>
     </div>
