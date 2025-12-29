@@ -32,14 +32,11 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
   }
 
   return (
-    <motion.div
+      <motion.div
       className={cn("relative overflow-hidden h-full bg-black rounded-lg border border-border/20 group min-h-[300px]", className)}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay }}
-      style={{
-        filter: "url(#noise)",
-      }}
     >
       <AnimatedGradientWithSvg colors={colors} speed={0.05} blur="medium" />
 
@@ -71,7 +68,7 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, value, subtitle, colors, d
       </div>
 
       <motion.div
-        className="relative z-10 p-3 sm:p-5 md:p-8 backdrop-blur-sm h-full flex flex-col justify-center"
+        className="relative z-20 p-3 sm:p-5 md:p-8 backdrop-blur-sm h-full flex flex-col justify-center"
         variants={container}
         initial="hidden"
         animate="show"
@@ -129,18 +126,6 @@ const features = [
 export function AnimatedFeaturesSection() {
   return (
     <section id="features" className="py-20 px-4 bg-black">
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          <filter id="noise" x="0%" y="0%" width="100%" height="100%">
-            <feTurbulence baseFrequency="0.4" numOctaves="2" result="noise" seed="2" type="fractalNoise" />
-            <feColorMatrix in="noise" type="saturate" values="0" />
-            <feComponentTransfer>
-              <feFuncA type="discrete" tableValues="0.02 0.04 0.06" />
-            </feComponentTransfer>
-            <feComposite operator="over" in2="SourceGraphic" />
-          </filter>
-        </defs>
-      </svg>
 
       <div className="container mx-auto">
         <div className="text-center mb-16">
