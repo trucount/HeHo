@@ -3,34 +3,49 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { chatbotId, message } = await request.json()
+    const { chatbotId, message, isPublic } = await request.json()
 
     const supabase = await createClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // For public access, we don't require authentication
+    let user = null
+    if (!isPublic) {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      if (!currentUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+      user = currentUser
     }
 
     const { data: chatbot, error: chatbotError } = await supabase
       .from("chatbots")
       .select("*")
       .eq("id", chatbotId)
-      .eq("user_id", user.id)
       .single()
 
     if (chatbotError || !chatbot) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 })
     }
 
-    const { data: userData } = await supabase.from("users").select("*").eq("id", user.id).single()
+    // For public access, verify chatbot is deployed
+    if (isPublic && !chatbot.deployed) {
+      return NextResponse.json({ error: "Chatbot not deployed" }, { status: 404 })
+    }
+
+    if (!isPublic && chatbot.user_id !== user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { data: userData } = await supabase.from("users").select("*").eq("id", chatbot.user_id).single()
 
     if (!userData?.openrouter_key_encrypted) {
       return NextResponse.json({ error: "OpenRouter key not configured" }, { status: 400 })
     }
+
+    const dataTableName = chatbot.data_table_name || null
 
     const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -53,6 +68,8 @@ ${chatbot.description}
 Goal: ${chatbot.goal}
 Tone: ${chatbot.tone || "professional"}
 
+${dataTableName ? `Database Table: ${dataTableName} - Save relevant user data here when appropriate` : ""}
+
 You have access to the user's Supabase database with the following permissions:
 - Read: ${userData.supabase_permissions?.can_read ? "Yes" : "No"}
 - Insert: ${userData.supabase_permissions?.can_insert ? "Yes" : "No"}
@@ -73,19 +90,26 @@ Always respond helpfully and consider the user's database context when answering
 
     if (!openRouterResponse.ok) {
       const errorData = await openRouterResponse.json()
-      console.error("OpenRouter error:", errorData)
+      console.error("[v0] OpenRouter error:", errorData)
       throw new Error("OpenRouter API error")
     }
 
     const data = await openRouterResponse.json()
     const reply = data.choices[0].message.content
 
-    const today = new Date().toISOString().split("T")[0]
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayString = today.toISOString()
+    const monthString = today.toISOString().substring(0, 7)
+
     const { data: existingUsage } = await supabase
       .from("usage")
       .select("*")
-      .eq("user_id", user.id)
-      .eq("month", today)
+      .eq("user_id", chatbot.user_id)
+      .eq("month", monthString)
+      .gte("created_at", todayString)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .single()
 
     if (existingUsage) {
@@ -100,19 +124,21 @@ Always respond helpfully and consider the user's database context when answering
         .eq("id", existingUsage.id)
     } else {
       await supabase.from("usage").insert({
-        user_id: user.id,
-        month: today,
+        user_id: chatbot.user_id,
+        month: monthString,
         messages: 1,
         tokens: data.usage?.total_tokens || 0,
         api_calls: 1,
         db_reads: 0,
         db_writes: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
     }
 
-    return NextResponse.json({ reply })
+    return NextResponse.json({ reply, tokens: data.usage?.total_tokens || 0 })
   } catch (error) {
-    console.error("Chat error:", error)
+    console.error("[v0] Chat error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

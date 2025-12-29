@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
-import { MobileDetector } from "@/components/mobile-detector"
+import { AppSidebar } from "@/components/app-sidebar"
 
 export default function AppLayout({
   children,
@@ -13,6 +13,7 @@ export default function AppLayout({
   children: React.ReactNode
 }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const router = useRouter()
   const supabase = createClient()
 
@@ -31,7 +32,7 @@ export default function AppLayout({
     }
 
     checkAuth()
-  }, [])
+  }, [router, supabase])
 
   if (isAuthenticated === null) {
     return (
@@ -42,9 +43,9 @@ export default function AppLayout({
   }
 
   return (
-    <>
-      <MobileDetector />
-      {children}
-    </>
+    <div className="flex min-h-screen">
+      <AppSidebar />
+      <main className="flex-1 w-full overflow-auto">{children}</main>
+    </div>
   )
 }

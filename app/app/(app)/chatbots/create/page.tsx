@@ -1,0 +1,403 @@
+"use client"
+
+import type React from "react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRouter } from "next/navigation"
+import { AlertCircle, Loader2, ArrowRight, Sparkles } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
+
+const POPULAR_MODELS = [
+  {
+    id: "meta-llama/llama-3.3-70b-instruct:free",
+    name: "Llama 3.3 70B (Recommended)",
+    description: "Balanced, powerful, best for most use cases",
+  },
+  {
+    id: "google/gemini-2.0-flash-exp:free",
+    name: "Gemini 2.0 Flash",
+    description: "Fast, handles long context well",
+  },
+  {
+    id: "mistralai/mistral-small-3.1-24b-instruct:free",
+    name: "Mistral Small 3.1",
+    description: "Fast and efficient for quick responses",
+  },
+  {
+    id: "google/gemma-3-12b-it:free",
+    name: "Gemma 3 12B",
+    description: "Lightweight, good for simple tasks",
+  },
+]
+
+const GOALS = [
+  { value: "support", label: "Customer Support" },
+  { value: "sales", label: "Sales Assistant" },
+  { value: "knowledge", label: "Knowledge Base Q&A" },
+  { value: "lead", label: "Lead Capture" },
+  { value: "custom", label: "Custom" },
+]
+
+const TONES = [
+  { value: "friendly", label: "Friendly" },
+  { value: "professional", label: "Professional" },
+  { value: "strict", label: "Strict" },
+]
+
+const THEMES = [
+  { value: "dark", label: "Dark", color: "bg-black" },
+  { value: "light", label: "Light", color: "bg-white" },
+  { value: "blue", label: "Blue", color: "bg-blue-600" },
+  { value: "green", label: "Green", color: "bg-green-600" },
+  { value: "purple", label: "Purple", color: "bg-purple-600" },
+]
+
+export default function CreateChatbotPage() {
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [generatingPrompt, setGeneratingPrompt] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    goal: "",
+    description: "",
+    tone: "professional",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    theme: "dark",
+  })
+  const [error, setError] = useState<string | null>(null)
+  const [chatbotCount, setChatbotCount] = useState(0)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    const checkUserAndPlan = async () => {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+      if (!currentUser) {
+        router.push("/login")
+        return
+      }
+      setUser(currentUser)
+
+      const { data, count } = await supabase
+        .from("chatbots")
+        .select("*", { count: "exact" })
+        .eq("user_id", currentUser.id)
+
+      setChatbotCount(count || 0)
+      setLoading(false)
+    }
+
+    checkUserAndPlan()
+  }, [])
+
+  const generatePromptFromGoal = async () => {
+    if (!formData.name || !formData.goal) {
+      setError("Please enter chatbot name and select a goal first")
+      return
+    }
+
+    setGeneratingPrompt(true)
+    setError(null)
+
+    try {
+      const response = await fetch("/api/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          goal: formData.goal,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to generate prompt")
+
+      const { prompt } = await response.json()
+      setFormData((prev) => ({
+        ...prev,
+        description: prompt,
+      }))
+    } catch (err) {
+      setError("Failed to generate prompt. Please write your own.")
+      console.error(err)
+    } finally {
+      setGeneratingPrompt(false)
+    }
+  }
+
+  const handleCreateChatbot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreating(true)
+    setError(null)
+
+    try {
+      if (chatbotCount > 0) {
+        throw new Error("You can only create one chatbot on the free plan.")
+      }
+
+      if (!formData.name || !formData.goal || !formData.description) {
+        throw new Error("Please fill in all required fields")
+      }
+
+      if (formData.description.length < 200) {
+        throw new Error("Project description must be at least 200 characters")
+      }
+
+      const { data, error: insertError } = await supabase
+        .from("chatbots")
+        .insert({
+          user_id: user.id,
+          name: formData.name,
+          goal: formData.goal,
+          description: formData.description,
+          tone: formData.tone,
+          model: formData.model,
+          theme: formData.theme,
+          status: "active",
+        })
+        .select()
+        .single()
+
+      if (insertError) throw insertError
+
+      try {
+        const tableName = `chatbot_${data.id.substring(0, 8)}_data`
+
+        const createTableResponse = await fetch("/api/create-table", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatbotId: data.id,
+            tableName,
+            userId: user.id,
+            chatbotName: formData.name,
+          }),
+        })
+
+        if (createTableResponse.ok) {
+          // Update chatbot with table name
+          await supabase.from("chatbots").update({ data_table_name: tableName }).eq("id", data.id)
+        }
+      } catch (err) {
+        console.error("Error creating data table:", err)
+        // Continue anyway - table creation is optional
+      }
+
+      router.push(`/app/(app)/chatbots/${data.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create chatbot")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <Link href="/app/dashboard" className="text-primary hover:underline mb-8 block">
+          ← Back to Dashboard
+        </Link>
+
+        {chatbotCount > 0 ? (
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader>
+              <CardTitle className="text-2xl">Free Plan Limit Reached</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                You have reached the maximum of 1 chatbot for the free plan. Please upgrade to a paid plan to create
+                more chatbots.
+              </p>
+              <Button disabled>Create Chatbot</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader>
+              <CardTitle className="text-3xl">Create New Chatbot</CardTitle>
+              <CardDescription>Set up your AI chatbot with just a few details</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateChatbot} className="space-y-6">
+                {/* Name */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Chatbot Name *</label>
+                  <Input
+                    placeholder="e.g., Customer Support Bot"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="bg-background/50 border-border/50"
+                    maxLength={50}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{formData.name.length}/50 characters</p>
+                </div>
+
+                {/* Goal */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Chatbot Goal *</label>
+                  <Select value={formData.goal} onValueChange={(value) => setFormData({ ...formData, goal: value })}>
+                    <SelectTrigger className="bg-background/50 border-border/50">
+                      <SelectValue placeholder="Select a goal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GOALS.map((g) => (
+                        <SelectItem key={g.value} value={g.value}>
+                          {g.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Project Description */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-foreground">Project Description *</label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generatePromptFromGoal}
+                      disabled={generatingPrompt || !formData.name || !formData.goal}
+                      className="border-border/50 text-foreground hover:bg-white/10 bg-transparent h-8 text-xs"
+                    >
+                      {generatingPrompt ? (
+                        <>
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-1 h-3 w-3" />
+                          AI Generate
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <Textarea
+                    placeholder="Describe your project in detail. Include: What your app does, what data exists in your Supabase, what users will ask, what the chatbot should never do, any business rules."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="bg-background/50 border-border/50 min-h-32"
+                    maxLength={5000}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formData.description.length}/5000 characters (min 200 required)
+                  </p>
+                </div>
+
+                {/* Tone */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Tone (Optional)</label>
+                  <Select value={formData.tone} onValueChange={(value) => setFormData({ ...formData, tone: value })}>
+                    <SelectTrigger className="bg-background/50 border-border/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TONES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* AI Model */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">AI Model *</label>
+                  <Select value={formData.model} onValueChange={(value) => setFormData({ ...formData, model: value })}>
+                    <SelectTrigger className="bg-background/50 border-border/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POPULAR_MODELS.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {POPULAR_MODELS.find((m) => m.id === formData.model)?.description}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Theme (Optional)</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {THEMES.map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, theme: t.value })}
+                        className={`aspect-square rounded-lg border-2 transition-all ${
+                          formData.theme === t.value ? "border-white" : "border-border/50"
+                        } ${t.color}`}
+                        title={t.label}
+                      >
+                        <span className="sr-only">{t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Selected: {THEMES.find((t) => t.value === formData.theme)?.label}
+                  </p>
+                </div>
+
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Use AI Generate to automatically create a detailed prompt based on your chatbot's goal
+                  </AlertDescription>
+                </Alert>
+
+                {error && (
+                  <Alert className="border-destructive/50 bg-destructive/5">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <AlertDescription className="text-destructive">{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={creating}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  size="lg"
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      Create Chatbot
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
