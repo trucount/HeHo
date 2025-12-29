@@ -48,7 +48,9 @@ export default function AnimatedGradientWithSvg({ className, gradientColors, chi
         'hover:before:opacity-0',
       )}
     >
-      {children}
+      <div className="relative z-20 h-full w-full">
+        {children}
+      </div>
       <div
         className={cn(
           'absolute inset-0 z-0 opacity-100 transition-opacity',
