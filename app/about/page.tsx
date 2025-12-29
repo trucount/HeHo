@@ -14,12 +14,12 @@ export default function AboutPage() {
         <div className="container mx-auto px-4">
 
           {/* Hero */}
-          <div className="max-w-5xl mx-auto text-center mb-24">
-            <h1 className="text-6xl md:text-7xl font-bold text-foreground mb-10 text-balance">
+          <div className="max-w-4xl mx-auto mb-20">
+            <h1 className="text-4xl font-bold text-foreground mb-6 text-center">
               About HeHo
             </h1>
 
-            <p className="text-3xl md:text-4xl lg:text-5xl text-muted-foreground leading-snug">
+            <p className="text-lg md:text-xl text-muted-foreground mb-6 leading-relaxed">
               HeHo is an open-source AI chatbot builder designed to help teams create
               intelligent, reliable, and deeply context-aware chatbots — all without
               writing a single line of code. We believe artificial intelligence should
