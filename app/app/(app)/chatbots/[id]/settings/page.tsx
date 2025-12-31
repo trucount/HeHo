@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -27,11 +27,14 @@ const TONES = [
 ]
 
 const THEMES = [
-  { value: "dark", label: "Dark", color: "bg-black" },
-  { value: "light", label: "Light", color: "bg-white" },
-  { value: "blue", label: "Blue", color: "bg-blue-600" },
-  { value: "green", label: "Green", color: "bg-green-600" },
-  { value: "purple", label: "Purple", color: "bg-purple-600" },
+  { value: 'twilight', label: 'Twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
+  { value: 'sunrise', label: 'Sunrise', color: 'bg-gradient-to-r from-amber-300 to-orange-500', textColor: 'text-white' },
+  { value: 'ocean', label: 'Ocean', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', textColor: 'text-white' },
+  { value: 'forest', label: 'Forest', color: 'bg-gradient-to-r from-emerald-500 to-lime-600', textColor: 'text-white' },
+  { value: 'grape', label: 'Grape', color: 'bg-gradient-to-r from-violet-500 to-purple-500', textColor: 'text-white' },
+  { value: 'rose', label: 'Rose', color: 'bg-gradient-to-r from-pink-500 to-rose-500', textColor: 'text-white' },
+  { value: 'sky', label: 'Sky', color: 'bg-gradient-to-r from-sky-400 to-cyan-300', textColor: 'text-black' },
+  { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
 ]
 
 export default function ChatbotSettingsPage() {
@@ -44,7 +47,7 @@ export default function ChatbotSettingsPage() {
     description: "",
     tone: "professional",
     model: "",
-    theme: "dark",
+    theme: "sky",
   })
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -78,7 +81,7 @@ export default function ChatbotSettingsPage() {
           description: data.description,
           tone: data.tone,
           model: data.model,
-          theme: data.theme || "dark",
+          theme: data.theme || "sky",
         })
       } catch (err) {
         console.error(err)
@@ -119,6 +122,9 @@ export default function ChatbotSettingsPage() {
       setSaving(false)
     }
   }
+  
+  const selectedTheme = THEMES.find((t) => t.value === formData.theme) || THEMES[0];
+
 
   if (loading) {
     return (
@@ -253,7 +259,7 @@ export default function ChatbotSettingsPage() {
               <CardContent className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-4">Select Theme</label>
-                  <div className="grid grid-cols-5 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     {THEMES.map((t) => (
                       <button
                         key={t.value}
@@ -278,18 +284,7 @@ export default function ChatbotSettingsPage() {
                   <div className="space-y-3">
                     <div className="flex gap-3 justify-end">
                       <div
-                        className={`max-w-xs px-4 py-3 rounded-lg rounded-br-none border border-white/20 ${
-                          formData.theme === "light"
-                            ? "bg-white text-black"
-                            : formData.theme === "blue"
-                              ? "bg-blue-600 text-white"
-                              : formData.theme === "green"
-                                ? "bg-green-600 text-white"
-                                : formData.theme === "purple"
-                                  ? "bg-purple-600 text-white"
-                                  : "bg-black text-white"
-                        }`}
-                      >
+                        className={`max-w-xs px-4 py-3 rounded-lg rounded-br-none border border-white/20 ${selectedTheme.color} ${selectedTheme.textColor}`}>
                         <p className="text-sm">This is a user message</p>
                       </div>
                     </div>

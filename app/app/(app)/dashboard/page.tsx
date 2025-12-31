@@ -129,22 +129,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Manage your AI chatbots</p>
-          </div>
-          <Link href="/app/settings">
-            <Button variant="outline" className="border-border/50 bg-transparent text-foreground hover:bg-white/10">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </Button>
-          </Link>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-12">
         {/* Plan Badge and Limits */}
         <div className="mb-8 flex items-center justify-between">

@@ -87,23 +87,20 @@ export default function ChatbotsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-6 flex justify-between items-center">
-          <div>
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+          <div class="mb-4 sm:mb-0">
             <h1 className="text-3xl font-bold text-foreground">Chatbots</h1>
             <p className="text-muted-foreground">Manage all your AI chatbots</p>
           </div>
           <Link href="/app/chatbots/create">
-            <Button className="bg-black hover:bg-gray-900 text-white border border-white/20">
+            <Button className="bg-black hover:bg-gray-900 text-white border border-white/20 w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Create Chatbot
             </Button>
           </Link>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
         {chatbots.length === 0 ? (
           <Card className="border-border/50 bg-card/50">
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -153,7 +150,7 @@ export default function ChatbotsPage() {
                       />
                     </div>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Link href={`/app/chatbots/${chatbot.id}`} className="flex-1">
                       <Button className="w-full bg-black hover:bg-gray-900 text-white border border-white/20">
                         <MessageSquare className="mr-2 h-4 w-4" />
@@ -169,21 +166,23 @@ export default function ChatbotsPage() {
                         Analytics
                       </Button>
                     </Link>
-                    <Link href={`/app/chatbots/${chatbot.id}/settings`}>
+                    <div className="flex gap-2">
+                      <Link href={`/app/chatbots/${chatbot.id}/settings`}>
+                        <Button
+                          variant="outline"
+                          className="border-border/50 text-foreground hover:bg-white/10 bg-transparent px-3"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Button
                         variant="outline"
-                        className="border-border/50 text-foreground hover:bg-white/10 bg-transparent"
+                        className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent px-3"
+                        onClick={() => handleDeleteChatbot(chatbot.id)}
                       >
-                        <Settings className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    </Link>
-                    <Button
-                      variant="outline"
-                      className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
-                      onClick={() => handleDeleteChatbot(chatbot.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

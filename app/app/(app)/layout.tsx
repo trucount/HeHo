@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
 import type React from "react"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
-import { AppSidebar } from "@/components/app-sidebar"
+import { Header } from "@/components/header"
 
 export default function AppLayout({
   children,
@@ -13,7 +13,6 @@ export default function AppLayout({
   children: React.ReactNode
 }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const router = useRouter()
   const supabase = createClient()
 
@@ -43,9 +42,9 @@ export default function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <AppSidebar />
-      <main className="flex-1 w-full overflow-auto">{children}</main>
+    <div className="min-h-screen flex flex-col">
+        <Header/>
+      <main className="flex-1 w-full pt-24">{children}</main>
     </div>
   )
 }

@@ -122,17 +122,14 @@ export default function UsagePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold text-foreground">Usage Analytics</h1>
-          <p className="text-muted-foreground">Track your API usage and analytics</p>
-        </div>
-      </div>
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+         <div class="mb-4 sm:mb-0">
+            <h1 className="text-3xl font-bold text-foreground">Usage Analytics</h1>
+            <p className="text-muted-foreground">Track your API usage and analytics</p>
+          </div>
 
-      <div className="container mx-auto px-6 py-8">
         {/* Time Range Filter */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-8">
           {(["daily", "weekly", "monthly", "yearly"] as TimeRange[]).map((range) => (
             <Button
               key={range}
@@ -199,8 +196,8 @@ export default function UsagePage() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={usageData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
-                    <YAxis stroke="rgba(255,255,255,0.5)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" fontSize={12} />
+                    <YAxis stroke="rgba(255,255,255,0.5)" fontSize={12} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.2)" }}
                     />
@@ -227,8 +224,8 @@ export default function UsagePage() {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={usageData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
-                    <YAxis stroke="rgba(255,255,255,0.5)" />
+                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" fontSize={12} />
+                    <YAxis stroke="rgba(255,255,255,0.5)" fontSize={12} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.2)" }}
                     />
