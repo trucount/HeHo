@@ -14,27 +14,41 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
 const POPULAR_MODELS = [
-  {
-    id: "meta-llama/llama-3.3-70b-instruct:free",
-    name: "Llama 3.3 70B (Recommended)",
-    description: "Balanced, powerful, best for most use cases",
-  },
-  {
-    id: "google/gemini-2.0-flash-exp:free",
-    name: "Gemini 2.0 Flash",
-    description: "Fast, handles long context well",
-  },
-  {
-    id: "mistralai/mistral-small-3.1-24b-instruct:free",
-    name: "Mistral Small 3.1",
-    description: "Fast and efficient for quick responses",
-  },
-  {
-    id: "google/gemma-3-12b-it:free",
-    name: "Gemma 3 12B",
-    description: "Lightweight, good for simple tasks",
-  },
-]
+    { id: "allenai/olmo-3.1-32b-think:free", name: "AllenAI: Olmo 3.1 32B Think" },
+    { id: "xiaomi/mimo-v2-flash:free", name: "Xiaomi: MiMo-V2-Flash" },
+    { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "NVIDIA: Nemotron 3 Nano 30B A3B" },
+    { id: "mistralai/devstral-2512:free", name: "Mistral: Devstral 2 2512" },
+    { id: "nex-agi/deepseek-v3.1-nex-n1:free", name: "Nex AGI: DeepSeek V3.1 Nex N1" },
+    { id: "arcee-ai/trinity-mini:free", name: "Arcee AI: Trinity Mini" },
+    { id: "tngtech/tng-r1t-chimera:free", name: "TNG: R1T Chimera" },
+    { id: "kwaipilot/kat-coder-pro:free", name: "Kwaipilot: KAT-Coder-Pro V1" },
+    { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "NVIDIA: Nemotron Nano 12B 2 VL" },
+    { id: "alibaba/tongyi-deepresearch-30b-a3b:free", name: "Tongyi DeepResearch 30B A3B" },
+    { id: "nvidia/nemotron-nano-9b-v2:free", name: "NVIDIA: Nemotron Nano 9B V2" },
+    { id: "openai/gpt-oss-120b:free", name: "OpenAI: gpt-oss-120b" },
+    { id: "openai/gpt-oss-20b:free", name: "OpenAI: gpt-oss-20b" },
+    { id: "z-ai/glm-4.5-air:free", name: "Z.AI: GLM 4.5 Air" },
+    { id: "qwen/qwen3-coder:free", name: "Qwen: Qwen3 Coder 480B A35B" },
+    { id: "moonshotai/kimi-k2:free", name: "MoonshotAI: Kimi K2 0711" },
+    { id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free", name: "Venice: Uncensored" },
+    { id: "google/gemma-3n-e2b-it:free", name: "Google: Gemma 3n 2B" },
+    { id: "tngtech/deepseek-r1t2-chimera:free", name: "TNG: DeepSeek R1T2 Chimera" },
+    { id: "deepseek/deepseek-r1-0528:free", name: "DeepSeek: R1 0528" },
+    { id: "google/gemma-3n-e4b-it:free", name: "Google: Gemma 3n 4B" },
+    { id: "qwen/qwen3-4b:free", name: "Qwen: Qwen3 4B" },
+    { id: "tngtech/deepseek-r1t-chimera:free", name: "TNG: DeepSeek R1T Chimera" },
+    { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral: Mistral Small 3.1 24B" },
+    { id: "google/gemma-3-4b-it:free", name: "Google: Gemma 3 4B" },
+    { id: "google/gemma-3-12b-it:free", name: "Google: Gemma 3 12B" },
+    { id: "google/gemma-3-27b-it:free", name: "Google: Gemma 3 27B" },
+    { id: "google/gemini-2.0-flash-exp:free", name: "Google: Gemini 2.0 Flash Experimental" },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Meta: Llama 3.3 70B Instruct" },
+    { id: "meta-llama/llama-3.2-3b-instruct:free", name: "Meta: Llama 3.2 3B Instruct" },
+    { id: "qwen/qwen-2.5-vl-7b-instruct:free", name: "Qwen: Qwen2.5-VL 7B Instruct" },
+    { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Nous: Hermes 3 405B Instruct" },
+    { id: "meta-llama/llama-3.1-405b-instruct:free", name: "Meta: Llama 3.1 405B Instruct" },
+    { id: "mistralai/mistral-7b-instruct:free", name: "Mistral: Mistral 7B Instruct" }
+];
 
 const GOALS = [
   { value: "support", label: "Customer Support" },
@@ -68,8 +82,8 @@ export default function CreateChatbotPage() {
     goal: "",
     description: "",
     tone: "professional",
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    theme: "dark",
+    models: [] as string[],
+    theme: "light",
   })
   const [error, setError] = useState<string | null>(null)
   const [chatbotCount, setChatbotCount] = useState(0)
@@ -143,8 +157,8 @@ export default function CreateChatbotPage() {
         throw new Error("You can only create one chatbot on the free plan.")
       }
 
-      if (!formData.name || !formData.goal || !formData.description) {
-        throw new Error("Please fill in all required fields")
+      if (!formData.name || !formData.goal || !formData.description || formData.models.length === 0) {
+        throw new Error("Please fill in all required fields and select at least one model")
       }
 
       if (formData.description.length < 200) {
@@ -159,7 +173,7 @@ export default function CreateChatbotPage() {
           goal: formData.goal,
           description: formData.description,
           tone: formData.tone,
-          model: formData.model,
+          model: formData.models[0],
           theme: formData.theme,
           status: "active",
         })
@@ -168,35 +182,21 @@ export default function CreateChatbotPage() {
 
       if (insertError) throw insertError
 
-      try {
-        const tableName = `chatbot_${data.id.substring(0, 8)}_data`
-
-        const createTableResponse = await fetch("/api/create-table", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chatbotId: data.id,
-            tableName,
-            userId: user.id,
-            chatbotName: formData.name,
-          }),
-        })
-
-        if (createTableResponse.ok) {
-          // Update chatbot with table name
-          await supabase.from("chatbots").update({ data_table_name: tableName }).eq("id", data.id)
-        }
-      } catch (err) {
-        console.error("Error creating data table:", err)
-        // Continue anyway - table creation is optional
-      }
-
-      router.push(`/app/(app)/chatbots/${data.id}`)
+      router.push(`/app/chatbots/${data.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create chatbot")
     } finally {
       setCreating(false)
     }
+  }
+
+  const handleModelSelection = (modelId: string) => {
+    setFormData(prev => {
+        const newModels = prev.models.includes(modelId) 
+            ? prev.models.filter(id => id !== modelId)
+            : [...prev.models, modelId].slice(0, 3);
+        return {...prev, models: newModels};
+    });
   }
 
   if (loading) {
@@ -321,22 +321,22 @@ export default function CreateChatbotPage() {
 
                 {/* AI Model */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">AI Model *</label>
-                  <Select value={formData.model} onValueChange={(value) => setFormData({ ...formData, model: value })}>
-                    <SelectTrigger className="bg-background/50 border-border/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {POPULAR_MODELS.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {POPULAR_MODELS.find((m) => m.id === formData.model)?.description}
-                  </p>
+                    <label className="block text-sm font-medium text-foreground mb-2">AI Models (select up to 3) *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {POPULAR_MODELS.map(model => (
+                            <Button 
+                                type="button"
+                                key={model.id} 
+                                variant={formData.models.includes(model.id) ? "secondary" : "outline"}
+                                onClick={() => handleModelSelection(model.id)}
+                            >
+                                {model.name}
+                            </Button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Selected {formData.models.length}/3 models. The first model will be the primary.
+                    </p>
                 </div>
 
                 <div>

@@ -97,20 +97,16 @@ Always respond helpfully and consider the user's database context when answering
     const data = await openRouterResponse.json()
     const reply = data.choices[0].message.content
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayString = today.toISOString()
-    const monthString = today.toISOString().substring(0, 7)
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthString = monthStart.toISOString().split('T')[0];
 
     const { data: existingUsage } = await supabase
       .from("usage")
-      .select("*")
+      .select("id, messages, tokens, api_calls")
       .eq("user_id", chatbot.user_id)
       .eq("month", monthString)
-      .gte("created_at", todayString)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single()
+      .single();
 
     if (existingUsage) {
       await supabase
@@ -121,7 +117,7 @@ Always respond helpfully and consider the user's database context when answering
           api_calls: (existingUsage.api_calls || 0) + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", existingUsage.id)
+        .eq("id", existingUsage.id);
     } else {
       await supabase.from("usage").insert({
         user_id: chatbot.user_id,
@@ -131,9 +127,7 @@ Always respond helpfully and consider the user's database context when answering
         api_calls: 1,
         db_reads: 0,
         db_writes: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      });
     }
 
     return NextResponse.json({ reply, tokens: data.usage?.total_tokens || 0 })
