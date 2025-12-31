@@ -129,7 +129,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+         <div class="mb-4 sm:mb-0">
+            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground">Manage your AI chatbots</p>
+          </div>
         {/* Plan Badge and Limits */}
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -142,7 +146,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Enhanced Analytics Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">

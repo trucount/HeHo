@@ -73,17 +73,12 @@ export default function DatabasePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Database</h1>
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+         <div class="mb-4 sm:mb-0">
+            <h1 className="text-3xl font-bold text-foreground">DATABASE</h1>
             <p className="text-muted-foreground">Manage your Supabase tables and schemas</p>
           </div>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8 max-w-4xl">
         {error ? (
           <Alert className="border-border/50 bg-card/50 mb-8">
             <Database className="h-4 w-4" />

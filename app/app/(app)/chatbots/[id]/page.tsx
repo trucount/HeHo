@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
@@ -43,6 +43,17 @@ interface Usage {
 
 const MESSAGE_LIMIT = 100
 const TOKEN_LIMIT = 1000000
+
+const THEMES = [
+  { value: 'twilight', label: 'Twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
+  { value: 'sunrise', label: 'Sunrise', color: 'bg-gradient-to-r from-amber-300 to-orange-500', textColor: 'text-white' },
+  { value: 'ocean', label: 'Ocean', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', textColor: 'text-white' },
+  { value: 'forest', label: 'Forest', color: 'bg-gradient-to-r from-emerald-500 to-lime-600', textColor: 'text-white' },
+  { value: 'grape', label: 'Grape', color: 'bg-gradient-to-r from-violet-500 to-purple-500', textColor: 'text-white' },
+  { value: 'rose', label: 'Rose', color: 'bg-gradient-to-r from-pink-500 to-rose-500', textColor: 'text-white' },
+  { value: 'sky', label: 'Sky', color: 'bg-gradient-to-r from-sky-400 to-cyan-300', textColor: 'text-black' },
+  { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
+]
 
 export default function ChatbotPage() {
   const [chatbot, setChatbot] = useState<Chatbot | null>(null)
@@ -190,6 +201,8 @@ export default function ChatbotPage() {
       setDeleting(false)
     }
   }
+  
+  const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0];
 
   if (loading) {
     return (
@@ -209,25 +222,8 @@ export default function ChatbotPage() {
     )
   }
 
-  const getThemeClasses = (theme: string) => {
-    switch (theme) {
-      case "light":
-        return "bg-white text-black"
-      case "blue":
-        return "bg-blue-600 text-white"
-      case "green":
-        return "bg-green-600 text-white"
-      case "purple":
-        return "bg-purple-600 text-white"
-      default:
-        return "bg-black text-white"
-    }
-  }
-
-  const themeClass = getThemeClasses(chatbot.theme)
-
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={`min-h-screen flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
       <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -306,7 +302,7 @@ export default function ChatbotPage() {
                   <div
                     className={`max-w-xs px-4 py-3 rounded-lg ${
                       message.role === "user"
-                        ? `${themeClass} rounded-br-none border border-white/20`
+                        ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/20`
                         : "bg-card/50 border border-border/50 text-foreground rounded-bl-none"
                     }`}
                   >
@@ -346,7 +342,7 @@ export default function ChatbotPage() {
               <Button
                 type="submit"
                 disabled={sending || !input.trim()}
-                className={`px-6 border border-white/20 ${themeClass}`}
+                className={`px-6 border border-white/20 ${selectedTheme.color} ${selectedTheme.textColor}`}
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
