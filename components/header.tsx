@@ -1,10 +1,11 @@
+
 'use client'
 
 import { useState, useEffect } from "react"
 import { HeHoLogo } from "./heho-logo"
 import { Button } from "./ui/button"
 import Link from "next/link"
-import { Menu, X, BarChart3, MessageSquare, Database, Zap, LogOut } from "lucide-react"
+import { Menu, X, BarChart3, MessageSquare, Database, Zap, LogOut, Settings } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
@@ -15,7 +16,7 @@ const navItems = [
   { href: "/app/usage", icon: Zap, label: "Usage" },
 ]
 
-export function Header() {
+export function Header({ withSettings }: { withSettings?: boolean }) {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
@@ -123,6 +124,14 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           {isAppPage ? (
+            <>
+            {withSettings && 
+                <Link href="/app/settings">
+                    <Button variant='ghost' size='icon' className="text-foreground/80 hover:text-foreground hover:bg-foreground/10">
+                        <Settings className="h-5 w-5"/>
+                    </Button>
+                </Link>
+            }
             <Button
                 onClick={handleLogout}
                 variant="ghost"
@@ -132,6 +141,7 @@ export function Header() {
                 <LogOut className='h-4 w-4 mr-2'/>
                 Sign Out
             </Button>
+            </>
           ) : (
             <>
               <Link href="/login">

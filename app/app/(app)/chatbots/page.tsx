@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -23,11 +24,29 @@ interface Chatbot {
 }
 
 export default function ChatbotsPage() {
-  const [user, setUser] = useState<any>(null)
   const [chatbots, setChatbots] = useState<Chatbot[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+
+  const handleDeleteChatbot = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this chatbot?")) return
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            router.push("/login")
+            return
+        }
+      const { error } = await supabase.from("chatbots").delete().eq("id", id).eq("user_id", user.id)
+
+      if (error) throw error
+      setChatbots(chatbots.filter((c) => c.id !== id))
+    } catch (err) {
+      console.error("Error deleting chatbot:", err)
+      alert("Failed to delete chatbot")
+    }
+  }
 
   useEffect(() => {
     const loadChatbots = async () => {
@@ -39,7 +58,6 @@ export default function ChatbotsPage() {
           router.push("/login")
           return
         }
-        setUser(currentUser)
 
         const { data: chatbotsData, error: chatbotsError } = await supabase
           .from("chatbots")
@@ -62,20 +80,6 @@ export default function ChatbotsPage() {
 
     loadChatbots()
   }, [])
-
-  const handleDeleteChatbot = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this chatbot?")) return
-
-    try {
-      const { error } = await supabase.from("chatbots").delete().eq("id", id).eq("user_id", user.id)
-
-      if (error) throw error
-      setChatbots(chatbots.filter((c) => c.id !== id))
-    } catch (err) {
-      console.error("Error deleting chatbot:", err)
-      alert("Failed to delete chatbot")
-    }
-  }
 
   if (loading) {
     return (
@@ -157,13 +161,13 @@ export default function ChatbotsPage() {
                         Chat
                       </Button>
                     </Link>
-                    <Link href={`/app/chatbots/${chatbot.id}/analytics`} className="flex-1">
+                    <Link href={`/app/chatbots/${chatbot.id}/deploy`} className="flex-1">
                       <Button
                         variant="outline"
                         className="w-full border-border/50 text-foreground hover:bg-white/10 bg-transparent"
                       >
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        Analytics
+                        <LinkIcon className="mr-2 h-4 w-4" />
+                        Deploy
                       </Button>
                     </Link>
                     <div className="flex gap-2">

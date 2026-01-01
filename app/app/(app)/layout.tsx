@@ -48,7 +48,7 @@ export default function AppLayout({
 
   return (
     <div className={`h-screen flex flex-col ${isChatbotPage ? '' : 'min-h-screen'}`}>
-      {!isChatbotPage && <Header/>}
+      {!isChatbotPage && <Header withSettings />}
       <main className={`w-full ${!isChatbotPage ? 'flex-1 pt-24' : 'h-full'}`}>{children}</main>
     </div>
   )
