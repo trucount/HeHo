@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Construct the system prompt
     let systemPrompt = `You are a helpful AI assistant named ${chatbot.name}.`;
-    if (chatbot.goal) {
+    if ( chatbot.goal) {
         systemPrompt += ` Your goal is to ${chatbot.goal}.`;
     }
     if (chatbot.description) {
@@ -158,14 +158,13 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         const today = new Date();
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        const monthString = monthStart.toISOString().split('T')[0];
+        const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
 
         const { data: existingUsage, error: usageError } = await supabase
           .from('usage')
           .select('id, messages, tokens, api_calls')
           .eq('user_id', userId!)
-          .eq('month', monthString)
+          .eq('month', dateString) // Use dateString in the 'month' column for daily tracking
           .single();
 
         if (usageError && usageError.code !== 'PGRST116') throw usageError;
@@ -184,7 +183,7 @@ export async function POST(request: NextRequest) {
         } else {
           await supabase.from('usage').insert({
             user_id: userId!,
-            month: monthString,
+            month: dateString, // Use dateString for daily tracking
             messages: 1,
             tokens: usageTokens,
             api_calls: 1,
