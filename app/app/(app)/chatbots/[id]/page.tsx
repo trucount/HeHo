@@ -30,7 +30,7 @@ interface Usage {
   tokens: number
 }
 
-const MESSAGE_LIMIT = 100
+const MESSAGE_LIMIT = 10000
 const TOKEN_LIMIT = 1000000
 
 const THEMES = [
