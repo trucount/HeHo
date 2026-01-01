@@ -1,138 +1,204 @@
-import { createClient } from "@/lib/supabase/server"
-import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from '@/lib/supabase/server'
+import { type NextRequest, NextResponse } from 'next/server'
+
+const POPULAR_MODELS = [
+    "allenai/olmo-3.1-32b-think:free",
+    "xiaomi/mimo-v2-flash:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "mistralai/devstral-2512:free",
+    "nex-agi/deepseek-v3.1-nex-n1:free",
+    "arcee-ai/trinity-mini:free",
+    "tngtech/tng-r1t-chimera:free",
+    "kwaipilot/kat-coder-pro:free",
+    "nvidia/nemotron-nano-12b-v2-vl:free",
+    "alibaba/tongyi-deepresearch-30b-a3b:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free",
+    "z-ai/glm-4.5-air:free",
+    "qwen/qwen3-coder:free",
+    "moonshotai/kimi-k2:free",
+    "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+    "google/gemma-3n-e2b-it:free",
+    "tngtech/deepseek-r1t2-chimera:free",
+    "deepseek/deepseek-r1-0528:free",
+    "google/gemma-3n-e4b-it:free",
+]
 
 export async function POST(request: NextRequest) {
   try {
-    const { chatbotId, message, isPublic } = await request.json()
+    const { message, history, isPublic, shareToken, chatbotId } = await request.json()
+
+    if (!message) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+    }
 
     const supabase = await createClient()
+    let chatbot: any = null
+    let userId: string | null = null
 
-    // For public access, we don't require authentication
-    let user = null
-    if (!isPublic) {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      if (!currentUser) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (isPublic) {
+      if (!shareToken) {
+        return NextResponse.json({ error: 'Share token is required' }, { status: 400 })
       }
-      user = currentUser
+
+      const { data: shareData, error: shareError } = await supabase
+        .from('chatbot_shares')
+        .select('chatbot_id, user_id, expires_at')
+        .eq('share_token', shareToken)
+        .single()
+
+      if (shareError || !shareData) {
+        return NextResponse.json({ error: 'Invalid share link' }, { status: 404 })
+      }
+
+      if (shareData.expires_at && new Date(shareData.expires_at) < new Date()) {
+        return NextResponse.json({ error: 'This share link has expired' }, { status: 410 })
+      }
+      
+      userId = shareData.user_id;
+
+      const { data: chatbotData, error: chatbotError } = await supabase
+        .from('chatbots')
+        .select('*')
+        .eq('id', shareData.chatbot_id)
+        .single()
+
+      if (chatbotError || !chatbotData) {
+        return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 })
+      }
+      chatbot = chatbotData
+
+    } else {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+        userId = user.id;
+        const { data: chatbotData, error: chatbotError } = await supabase
+            .from("chatbots")
+            .select("*")
+            .eq("id", chatbotId)
+            .single()
+        if (chatbotError || !chatbotData) {
+            return NextResponse.json({ error: "Chatbot not found" }, { status: 404 })
+        }
+
+        if (chatbotData.user_id !== user.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+        }
+        chatbot = chatbotData
     }
 
-    const { data: chatbot, error: chatbotError } = await supabase
-      .from("chatbots")
-      .select("*")
-      .eq("id", chatbotId)
-      .single()
-
-    if (chatbotError || !chatbot) {
-      return NextResponse.json({ error: "Chatbot not found" }, { status: 404 })
+    if (!userId) {
+      return NextResponse.json({ error: 'Could not identify user' }, { status: 500 })
     }
 
-    // For public access, verify chatbot is deployed
-    if (isPublic && !chatbot.deployed) {
-      return NextResponse.json({ error: "Chatbot not deployed" }, { status: 404 })
-    }
-
-    if (!isPublic && chatbot.user_id !== user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { data: userData } = await supabase.from("users").select("*").eq("id", chatbot.user_id).single()
+    const { data: userData } = await supabase.from('users').select('openrouter_key_encrypted').eq('id', userId).single()
 
     if (!userData?.openrouter_key_encrypted) {
-      return NextResponse.json({ error: "OpenRouter key not configured" }, { status: 400 })
+      return NextResponse.json({ error: 'API key not configured for the chatbot owner.' }, { status: 400 })
     }
 
-    const dataTableName = chatbot.data_table_name || null
-
-    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${userData.openrouter_key_encrypted}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://heho.app",
-        "X-Title": "HeHo",
-      },
-      body: JSON.stringify({
-        model: chatbot.model,
-        messages: [
-          {
-            role: "system",
-            content: `You are a helpful AI assistant for: ${chatbot.name}. 
-            
-Project Context:
-${chatbot.description}
-
-Goal: ${chatbot.goal}
-Tone: ${chatbot.tone || "professional"}
-
-${dataTableName ? `Database Table: ${dataTableName} - Save relevant user data here when appropriate` : ""}
-
-You have access to the user's Supabase database with the following permissions:
-- Read: ${userData.supabase_permissions?.can_read ? "Yes" : "No"}
-- Insert: ${userData.supabase_permissions?.can_insert ? "Yes" : "No"}
-- Create: ${userData.supabase_permissions?.can_create ? "Yes" : "No"}
-- Delete: ${userData.supabase_permissions?.can_delete ? "Yes" : "No"}
-
-Always respond helpfully and consider the user's database context when answering.`,
-          },
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 1024,
-      }),
-    })
-
-    if (!openRouterResponse.ok) {
-      const errorData = await openRouterResponse.json()
-      console.error("[v0] OpenRouter error:", errorData)
-      throw new Error("OpenRouter API error")
+    // Construct the system prompt
+    let systemPrompt = `You are a helpful AI assistant named ${chatbot.name}.`;
+    if (chatbot.goal) {
+        systemPrompt += ` Your goal is to ${chatbot.goal}.`;
+    }
+    if (chatbot.description) {
+        systemPrompt += ` Here is a description of you: ${chatbot.description}.`;
+    }
+    if (chatbot.tone) {
+        systemPrompt += ` Maintain a ${chatbot.tone} tone.`;
     }
 
-    const data = await openRouterResponse.json()
-    const reply = data.choices[0].message.content
+    const modelsToTry = [chatbot.model, ...POPULAR_MODELS];
+    let openRouterResponse = null;
+    let responseData: any = null;
 
-    const today = new Date();
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthString = monthStart.toISOString().split('T')[0];
+    for (const model of modelsToTry) {
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${userData.openrouter_key_encrypted}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://heho.app',
+                'X-Title': 'HeHo',
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  ...(history || []),
+                  { role: 'user', content: message },
+                ],
+                temperature: chatbot.temperature || 0.7,
+                max_tokens: 2048, 
+              }),
+            });
 
-    const { data: existingUsage } = await supabase
-      .from("usage")
-      .select("id, messages, tokens, api_calls")
-      .eq("user_id", chatbot.user_id)
-      .eq("month", monthString)
-      .single();
-
-    if (existingUsage) {
-      await supabase
-        .from("usage")
-        .update({
-          messages: (existingUsage.messages || 0) + 1,
-          tokens: (existingUsage.tokens || 0) + (data.usage?.total_tokens || 0),
-          api_calls: (existingUsage.api_calls || 0) + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingUsage.id);
-    } else {
-      await supabase.from("usage").insert({
-        user_id: chatbot.user_id,
-        month: monthString,
-        messages: 1,
-        tokens: data.usage?.total_tokens || 0,
-        api_calls: 1,
-        db_reads: 0,
-        db_writes: 0,
-      });
+            if (response.ok) {
+                openRouterResponse = response;
+                responseData = await openRouterResponse.json();
+                break; // Success, exit loop
+            }
+        } catch (error) {
+            console.error(`[API] Error with model ${model}:`, error);
+        }
+    }
+    
+    if (!openRouterResponse || !responseData) {
+      return NextResponse.json({ error: "All models failed to respond." }, { status: 500 });
     }
 
-    return NextResponse.json({ reply, tokens: data.usage?.total_tokens || 0 })
-  } catch (error) {
-    console.error("[v0] Chat error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const reply = responseData.choices[0].message.content;
+
+    // Record usage in a separate, non-blocking operation
+    (async () => {
+      try {
+        const today = new Date();
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthString = monthStart.toISOString().split('T')[0];
+
+        const { data: existingUsage, error: usageError } = await supabase
+          .from('usage')
+          .select('id, messages, tokens, api_calls')
+          .eq('user_id', userId!)
+          .eq('month', monthString)
+          .single();
+
+        if (usageError && usageError.code !== 'PGRST116') throw usageError;
+
+        const usageTokens = responseData.usage?.total_tokens || 0;
+
+        if (existingUsage) {
+          await supabase
+            .from('usage')
+            .update({
+              messages: (existingUsage.messages || 0) + 1,
+              tokens: (existingUsage.tokens || 0) + usageTokens,
+              api_calls: (existingUsage.api_calls || 0) + 1,
+            })
+            .eq('id', existingUsage.id);
+        } else {
+          await supabase.from('usage').insert({
+            user_id: userId!,
+            month: monthString,
+            messages: 1,
+            tokens: usageTokens,
+            api_calls: 1,
+          });
+        }
+      } catch (e) {
+        console.error('[API] Usage recording error:', e);
+      }
+    })();
+
+    return NextResponse.json({ reply })
+
+  } catch (error: any) {
+    console.error('[API] Chat error:', error)
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
 }

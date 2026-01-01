@@ -115,7 +115,7 @@ export default function ChatbotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+ const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || limitReached) return
 
@@ -141,7 +141,10 @@ export default function ChatbotPage() {
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to get response")
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to get response from the server.")
+      }
 
       const { reply, tokens } = await response.json()
 
@@ -160,12 +163,12 @@ export default function ChatbotPage() {
       if (updatedUsage.messages >= MESSAGE_LIMIT || updatedUsage.tokens >= TOKEN_LIMIT) {
         setLimitReached(true)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error:", error)
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
         role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
+        content: `Sorry, an error occurred: ${error.message}`,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -197,25 +200,25 @@ export default function ChatbotPage() {
   return (
     <div className={`h-full w-full flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
-      <div className="p-4 border-b border-border/50 bg-card/30 flex justify-between items-center">
+      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
         <div className="flex items-center gap-4">
             <Link href="/app/chatbots">
-                <Button variant="ghost" size="icon" className="text-foreground hover:bg-white/10">
+                <Button variant="ghost" size="icon" className={`${selectedTheme.textColor} hover:bg-white/10`}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
             <div>
-                <h1 className="font-bold text-lg text-foreground">{chatbot.name}</h1>
+                <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
             </div>
         </div>
         <div className="flex items-center gap-2">
             <Link href={`/app/chatbots/${chatbot.id}/settings`}>
-                <Button variant="outline" size="icon" className="text-foreground hover:bg-white/10">
+                <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
                     <Settings className="h-5 w-5" />
                 </Button>
             </Link>
             <Link href={`/app/chatbots/${chatbot.id}/deploy`}>
-                <Button variant="outline" size="icon" className="text-foreground hover:bg-white/10">
+                <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
                     <Rocket className="h-5 w-5" />
                 </Button>
             </Link>
@@ -227,8 +230,8 @@ export default function ChatbotPage() {
         <div className="container mx-auto px-4 py-8 max-w-2xl flex-1">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Start Chatting</h2>
-              <p className="text-muted-foreground text-center">
+              <h2 className={`text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
+              <p className={`${selectedTheme.textColor}/80 text-center`}>
                 Chat with {chatbot.name}. Messages are processed in real-time.
               </p>
             </div>
@@ -240,19 +243,18 @@ export default function ChatbotPage() {
                   className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-xs px-4 py-3 rounded-lg ${
+                    className={`max-w-xs px-4 py-3 rounded-lg shadow-md ${ 
                       message.role === "user"
-                        ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/20`
-                        : "bg-card/50 border border-border/50 text-foreground rounded-bl-none"
-                    }`}
-                  >
-                    <p className="text-sm">{message.content}</p>
+                        ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
+                        : "bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none"
+                    }`}>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
                 </div>
               ))}
               {sending && (
                 <div className="flex gap-4 justify-start">
-                  <div className="bg-card/50 border border-border/50 text-foreground rounded-lg rounded-bl-none px-4 py-3">
+                  <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
                     <Loader2 className="h-4 w-4 animate-spin text-white" />
                   </div>
                 </div>
@@ -264,10 +266,10 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border/50 bg-background">
+      <div className="border-t border-white/20 bg-black/20">
         <div className="container mx-auto px-4 py-4 max-w-2xl">
           {limitReached ? (
-            <div className="text-center text-red-500">
+            <div className="text-center text-red-400 py-4">
               <p>You have reached your daily limit. Please upgrade for more usage.</p>
             </div>
           ) : (
@@ -277,14 +279,14 @@ export default function ChatbotPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={sending}
-                className="bg-card/50 border-border/50 text-foreground placeholder-muted-foreground"
+                className={`flex-1 bg-white/10 ${selectedTheme.textColor} placeholder-white/60 border-white/30 rounded-full focus:ring-2 focus:ring-white/50`}
               />
               <Button
                 type="submit"
                 disabled={sending || !input.trim()}
-                className={`px-6 border border-white/20 ${selectedTheme.color} ${selectedTheme.textColor}`}
+                className={`p-3 rounded-full ${selectedTheme.color} ${selectedTheme.textColor} hover:opacity-90 disabled:opacity-50 transition-opacity`}
               >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
               </Button>
             </form>
           )}

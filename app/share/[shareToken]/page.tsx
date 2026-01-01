@@ -43,7 +43,7 @@ export default function SharedChatbotPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const supabase = createClient()
-  const shareToken = params.id as string
+  const shareToken = params.shareToken as string
 
   useEffect(() => {
     const fetchChatbotInfo = async () => {
