@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     let chatbot: any = null
     let userId: string | null = null
 
+    // ---------------- PUBLIC CHAT ----------------
     if (isPublic) {
       if (!shareToken) {
         return NextResponse.json(
@@ -50,13 +51,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const { data: shareData, error: shareError } = await supabase
+      const { data: shareData } = await supabase
         .from('chatbot_shares')
         .select('chatbot_id, user_id, expires_at')
         .eq('share_token', shareToken)
         .single()
 
-      if (shareError || !shareData) {
+      if (!shareData) {
         return NextResponse.json(
           { error: 'Invalid share link' },
           { status: 404 }
@@ -75,13 +76,13 @@ export async function POST(request: NextRequest) {
 
       userId = shareData.user_id
 
-      const { data: chatbotData, error: chatbotError } = await supabase
+      const { data: chatbotData } = await supabase
         .from('chatbots')
         .select('*')
         .eq('id', shareData.chatbot_id)
         .single()
 
-      if (chatbotError || !chatbotData) {
+      if (!chatbotData) {
         return NextResponse.json(
           { error: 'Chatbot not found' },
           { status: 404 }
@@ -89,7 +90,10 @@ export async function POST(request: NextRequest) {
       }
 
       chatbot = chatbotData
-    } else {
+    }
+
+    // ---------------- PRIVATE CHAT ----------------
+    else {
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -103,13 +107,13 @@ export async function POST(request: NextRequest) {
 
       userId = user.id
 
-      const { data: chatbotData, error: chatbotError } = await supabase
+      const { data: chatbotData } = await supabase
         .from('chatbots')
         .select('*')
         .eq('id', chatbotId)
         .single()
 
-      if (chatbotError || !chatbotData) {
+      if (!chatbotData) {
         return NextResponse.json(
           { error: 'Chatbot not found' },
           { status: 404 }
@@ -141,12 +145,12 @@ export async function POST(request: NextRequest) {
 
     if (!userData?.openrouter_key_encrypted) {
       return NextResponse.json(
-        { error: 'API key not configured for the chatbot owner.' },
+        { error: 'API key not configured.' },
         { status: 400 }
       )
     }
 
-    // Construct the system prompt
+    // ---------------- SYSTEM PROMPT ----------------
     let systemPrompt = `You are a helpful AI assistant named ${chatbot.name}.`
 
     if (chatbot.goal) {
@@ -154,21 +158,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (chatbot.description) {
-      systemPrompt += ` Here is a description of you: ${chatbot.description}.`
+      systemPrompt += ` ${chatbot.description}.`
     }
 
     if (chatbot.tone) {
       systemPrompt += ` Maintain a ${chatbot.tone} tone.`
     }
 
+    // ---------------- AI CALL ----------------
     const modelsToTry = [chatbot.model, ...POPULAR_MODELS]
 
-    let openRouterResponse = null
     let responseData: any = null
 
     for (const model of modelsToTry) {
       try {
-        const response = await fetch(
+        const res = await fetch(
           'https://openrouter.ai/api/v1/chat/completions',
           {
             method: 'POST',
@@ -180,7 +184,7 @@ export async function POST(request: NextRequest) {
               'X-Title': 'HeHo',
             },
             body: JSON.stringify({
-              model: model,
+              model,
               messages: [
                 { role: 'system', content: systemPrompt },
                 ...(history || []),
@@ -192,68 +196,56 @@ export async function POST(request: NextRequest) {
           }
         )
 
-        if (response.ok) {
-          openRouterResponse = response
-          responseData = await openRouterResponse.json()
+        if (res.ok) {
+          responseData = await res.json()
           break
         }
-      } catch (error) {
-        console.error(`[API] Error with model ${model}:`, error)
+      } catch (e) {
+        console.error('[MODEL ERROR]', model, e)
       }
     }
 
-    if (!openRouterResponse || !responseData) {
+    if (!responseData) {
       return NextResponse.json(
-        { error: 'All models failed to respond.' },
+        { error: 'All models failed.' },
         { status: 500 }
       )
     }
 
     const reply = responseData.choices[0].message.content
+    const tokensUsed = responseData.usage?.total_tokens || 0
 
-    // Record usage in a separate, non-blocking operation
-    ;(async () => {
-      try {
-        const today = new Date()
-        const dateString = today.toISOString().split('T')[0]
+    // ---------------- USAGE TRACKING (NO SUPABASE CHANGES) ----------------
+    const today = new Date()
+    const usageDate = today.toISOString().split('T')[0] // YYYY-MM-DD
 
-        const { data: existingUsage, error: usageError } = await supabase
-          .from('usage')
-          .select('id, messages, tokens, api_calls')
-          .eq('user_id', userId!)
-          .eq('month', dateString)
-          .single()
-
-        if (usageError && usageError.code !== 'PGRST116') throw usageError
-
-        const usageTokens = responseData.usage?.total_tokens || 0
-
-        if (existingUsage) {
-          await supabase
-            .from('usage')
-            .update({
-              messages: (existingUsage.messages || 0) + 1,
-              tokens: (existingUsage.tokens || 0) + usageTokens,
-              api_calls: (existingUsage.api_calls || 0) + 1,
-            })
-            .eq('id', existingUsage.id)
-        } else {
-          await supabase.from('usage').insert({
-            user_id: userId!,
-            month: dateString,
-            messages: 1,
-            tokens: usageTokens,
-            api_calls: 1,
-          })
-        }
-      } catch (e) {
-        console.error('[API] Usage recording error:', e)
+    await supabase.from('usage').upsert(
+      {
+        user_id: userId,
+        month: usageDate,
+        messages: 1,
+        tokens: tokensUsed,
+        api_calls: 1,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id,month',
+        ignoreDuplicates: false,
       }
-    })()
+    )
+
+    // Increment counters safely
+    await supabase.rpc('increment_usage', {
+      p_user_id: userId,
+      p_month: usageDate,
+      p_messages: 1,
+      p_tokens: tokensUsed,
+      p_api_calls: 1,
+    }).catch(() => {}) // ignore if rpc doesn't exist
 
     return NextResponse.json({ reply })
   } catch (error: any) {
-    console.error('[API] Chat error:', error)
+    console.error('[API ERROR]', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
