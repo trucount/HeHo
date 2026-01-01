@@ -221,100 +221,101 @@ export default function SetupWizardPage() {
           </Card>
         )}
 
-        {/* Step 2: Supabase Connection */}
-        {step === 2 && (
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle className="text-2xl text-foreground">Connect Supabase</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Link your Supabase database to store chatbot data
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-foreground">
-                  Find your credentials at{" "}
-                  <a
-                    href="https://app.supabase.com"
-                    target="_blank"
-                    className="text-white hover:underline font-semibold"
-                    rel="noreferrer"
-                  >
-                    app.supabase.com
-                  </a>{" "}
-                  → Settings → API keys
-                </AlertDescription>
-              </Alert>
+{/* Step 2: Supabase Connection (Optional) */}
+{step === 2 && (
+  <Card className="border-border/50 bg-card/50">
+    <CardHeader>
+      <CardTitle className="text-2xl text-foreground">Connect Supabase (Optional)</CardTitle>
+      <CardDescription className="text-muted-foreground">
+        Link your Supabase database to store chatbot data, or skip this step
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-6">
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription className="text-foreground">
+          Find your credentials at{" "}
+          <a
+            href="https://app.supabase.com"
+            target="_blank"
+            className="text-white hover:underline font-semibold"
+            rel="noreferrer"
+          >
+            app.supabase.com
+          </a>{" "}
+          → Settings → API keys
+        </AlertDescription>
+      </Alert>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Supabase Project URL</label>
-                <Input
-                  type="text"
-                  placeholder="https://xxxxx.supabase.co"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  className="bg-background/50 border-border/50 text-foreground"
-                />
-              </div>
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">Supabase Project URL</label>
+        <Input
+          type="text"
+          placeholder="https://xxxxx.supabase.co"
+          value={supabaseUrl}
+          onChange={(e) => setSupabaseUrl(e.target.value)}
+          className="bg-background/50 border-border/50 text-foreground"
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
-                </label>
-                <Input
-                  type="password"
-                  placeholder="sb_publishable_..."
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseKey(e.target.value)}
-                  className="bg-background/50 border-border/50 text-foreground"
-                />
-              </div>
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+        </label>
+        <Input
+          type="password"
+          placeholder="sb_publishable_..."
+          value={supabaseKey}
+          onChange={(e) => setSupabaseKey(e.target.value)}
+          className="bg-background/50 border-border/50 text-foreground"
+        />
+      </div>
 
-              {error && (
-                <Alert className="border-destructive/50 bg-destructive/5">
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                  <AlertDescription className="text-destructive">{error}</AlertDescription>
-                </Alert>
-              )}
+      {error && (
+        <Alert className="border-destructive/50 bg-destructive/5">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-destructive">{error}</AlertDescription>
+        </Alert>
+      )}
 
-              {connectionSuccess && (
-                <Alert className="border-white/20 bg-white/5">
-                  <CheckCircle className="h-4 w-4 text-white" />
-                  <AlertDescription className="text-white">Connected successfully!</AlertDescription>
-                </Alert>
-              )}
+      {connectionSuccess && (
+        <Alert className="border-white/20 bg-white/5">
+          <CheckCircle className="h-4 w-4 text-white" />
+          <AlertDescription className="text-white">Connected successfully!</AlertDescription>
+        </Alert>
+      )}
 
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                  className="flex-1 border-border/50 text-foreground"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={testSupabaseConnection}
-                  disabled={!supabaseUrl || !supabaseKey || testing}
-                  className="flex-1 bg-white hover:bg-gray-200 text-black"
-                >
-                  {testing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      Continue
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
+      <div className="flex gap-3">
+        <Button
+          variant="outline"
+          onClick={() => setStep(1)}
+          className="flex-1 border-border/50 text-foreground"
+        >
+          Back
+        </Button>
+        <Button
+          onClick={() =>
+            supabaseUrl && supabaseKey ? testSupabaseConnection() : setStep(3)
+          }
+          disabled={testing}
+          className="flex-1 bg-white hover:bg-gray-200 text-black"
+        >
+          {testing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Testing...
+            </>
+          ) : (
+            <>
+              Continue / Skip
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+)}
         {/* Step 3: Permissions */}
         {step === 3 && (
           <Card className="border-border/50 bg-card/50">
