@@ -1,7 +1,9 @@
+
 'use client'
 
 import type React from "react"
 import { useEffect, useState } from "react"
+import { usePathname } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
@@ -15,6 +17,7 @@ export default function AppLayout({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  const pathname = usePathname()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -41,10 +44,12 @@ export default function AppLayout({
     )
   }
 
+  const isChatbotPage = pathname.includes('/chatbots/') && pathname.split('/').length > 3
+
   return (
-    <div className="min-h-screen flex flex-col">
-        <Header/>
-      <main className="flex-1 w-full pt-24">{children}</main>
+    <div className={`h-screen flex flex-col ${isChatbotPage ? '' : 'min-h-screen'}`}>
+      {!isChatbotPage && <Header/>}
+      <main className={`w-full ${!isChatbotPage ? 'flex-1 pt-24' : 'h-full'}`}>{children}</main>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+
 'use client'
 
 import type React from "react"
@@ -7,18 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ArrowLeft, Settings, Trash2 } from "lucide-react"
+import { Send, Loader2, ArrowLeft, Settings, Rocket } from "lucide-react"
 import Link from "next/link"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 
 interface Message {
   id: string
@@ -30,8 +21,6 @@ interface Message {
 interface Chatbot {
   id: string
   name: string
-  goal: string
-  description: string
   model: string
   theme: string
 }
@@ -63,7 +52,6 @@ export default function ChatbotPage() {
   const [sending, setSending] = useState(false)
   const [usage, setUsage] = useState<Usage>({ messages: 0, tokens: 0 })
   const [limitReached, setLimitReached] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const params = useParams()
@@ -73,9 +61,7 @@ export default function ChatbotPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+        const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
           router.push("/login")
           return
@@ -83,7 +69,7 @@ export default function ChatbotPage() {
 
         const { data: chatbotData, error: chatbotError } = await supabase
           .from("chatbots")
-          .select("*")
+          .select("id, name, model, theme")
           .eq("id", chatbotId)
           .eq("user_id", user.id)
           .single()
@@ -187,34 +173,20 @@ export default function ChatbotPage() {
       setSending(false)
     }
   }
-
-  const handleDeleteChatbot = async () => {
-    setDeleting(true)
-    try {
-      const { error } = await supabase.from("chatbots").delete().eq("id", chatbotId)
-
-      if (error) throw error
-
-      router.push("/app/chatbots")
-    } catch (err) {
-      console.error("Delete error:", err)
-      setDeleting(false)
-    }
-  }
   
   const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="h-full w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-foreground" />
       </div>
     )
   }
 
   if (!chatbot) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-full w-full flex items-center justify-center bg-background">
         <Card className="p-6">
           <p className="text-foreground">Chatbot not found</p>
         </Card>
@@ -223,68 +195,36 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${selectedTheme.color}`}>
+    <div className={`h-full w-full flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      <div className="p-4 border-b border-border/50 bg-card/30 flex justify-between items-center">
+        <div className="flex items-center gap-4">
             <Link href="/app/chatbots">
-              <Button variant="ghost" size="sm" className="text-foreground hover:bg-white/10">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
+                <Button variant="ghost" size="icon" className="text-foreground hover:bg-white/10">
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
             </Link>
             <div>
-              <h1 className="text-lg font-bold text-foreground">{chatbot.name}</h1>
-              <p className="text-xs text-muted-foreground">{chatbot.model}</p>
+                <h1 className="font-bold text-lg text-foreground">{chatbot.name}</h1>
             </div>
-          </div>
-          <div className="flex gap-2">
+        </div>
+        <div className="flex items-center gap-2">
             <Link href={`/app/chatbots/${chatbot.id}/settings`}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-border/50 bg-transparent text-foreground hover:bg-white/10"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </Link>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="outline" size="icon" className="text-foreground hover:bg-white/10">
+                    <Settings className="h-5 w-5" />
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Chatbot</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete "{chatbot.name}"? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex gap-3 justify-end">
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteChatbot}
-                    disabled={deleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Delete
-                  </AlertDialogAction>
-                </div>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+            </Link>
+            <Link href={`/app/chatbots/${chatbot.id}/deploy`}>
+                <Button variant="outline" size="icon" className="text-foreground hover:bg-white/10">
+                    <Rocket className="h-5 w-5" />
+                </Button>
+            </Link>
         </div>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        <div className="container mx-auto px-4 py-8 max-w-2xl flex-1">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12">
               <h2 className="text-2xl font-bold text-foreground mb-2">Start Chatting</h2>
@@ -324,7 +264,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border/50 bg-background sticky bottom-0">
+      <div className="border-t border-border/50 bg-background">
         <div className="container mx-auto px-4 py-4 max-w-2xl">
           {limitReached ? (
             <div className="text-center text-red-500">
