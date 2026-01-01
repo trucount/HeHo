@@ -243,7 +243,9 @@ export default function SharedChatbotPage() {
               {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </form>
-          <p className="text-xs text-center text-white/50 pt-2">Powered by Heho.</p>
+          <p className="text-xs text-center text-white/50 pt-2">
+  Powered by <a href="https://heho.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">HeHo</a>.
+</p>
         </div>
       </div>
     </div>
