@@ -28,12 +28,6 @@ interface DateTimePickerProps {
 export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false)
 
-  const timeValues = React.useMemo(() => {
-    const hours = date ? format(date, 'HH') : '00'
-    const minutes = date ? format(date, 'mm') : '00'
-    return { hours, minutes }
-  }, [date])
-
   const handleDateChange = (newDate: Date | undefined) => {
     if (newDate) {
       const hours = date?.getHours() || 0
@@ -45,14 +39,15 @@ export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
   }
 
   const handleTimeChange = (value: string, unit: 'hours' | 'minutes') => {
-    const newDate = date ? new Date(date) : new Date()
-
-    if (unit === 'hours') {
-      newDate.setHours(parseInt(value, 10))
-    } else {
-      newDate.setMinutes(parseInt(value, 10))
+    if (date) {
+      const newDate = new Date(date)
+      if (unit === 'hours') {
+        newDate.setHours(parseInt(value, 10))
+      } else {
+        newDate.setMinutes(parseInt(value, 10))
+      }
+      setDate(newDate)
     }
-    setDate(newDate)
   }
 
   return (
@@ -78,32 +73,34 @@ export function DateTimePicker({ date, setDate }: DateTimePickerProps) {
         />
         <div className='p-4 border-t border-border flex items-center gap-2'>
           <Select
-            value={timeValues.hours}
             onValueChange={(value) => handleTimeChange(value, 'hours')}
+            defaultValue={date ? format(date, 'HH') : '00'}
           >
             <SelectTrigger className='w-[80px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: 24 }, (_, i) => {
-                const hour = String(i).padStart(2, '0')
-                return (<SelectItem key={hour} value={hour}>{hour}</SelectItem>)
-              })}
+              {Array.from({ length: 24 }, (_, i) => (
+                <SelectItem key={i} value={String(i).padStart(2, '0')}>
+                  {String(i).padStart(2, '0')}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <span>:</span>
           <Select
-            value={timeValues.minutes}
             onValueChange={(value) => handleTimeChange(value, 'minutes')}
+            defaultValue={date ? format(date, 'mm') : '00'}
           >
             <SelectTrigger className='w-[80px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: 60 }, (_, i) => {
-                const minute = String(i).padStart(2, '0')
-                return (<SelectItem key={minute} value={minute}>{minute}</SelectItem>)
-              })}
+              {Array.from({ length: 60 }, (_, i) => (
+                <SelectItem key={i} value={String(i).padStart(2, '0')}>
+                  {String(i).padStart(2, '0')}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
