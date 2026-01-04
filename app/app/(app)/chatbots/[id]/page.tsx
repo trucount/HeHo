@@ -1,4 +1,3 @@
-
 'use client'
 
 import type React from "react"
@@ -201,17 +200,17 @@ export default function ChatbotPage() {
     <div className={`h-full w-full flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
       <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/app/chatbots">
                 <Button variant="ghost" size="icon" className={`${selectedTheme.textColor} hover:bg-white/10`}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
-            <div>
-                <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
+            <div className="flex-1 min-w-0">
+                <h1 className={`font-bold text-lg truncate ${selectedTheme.textColor}`}>{chatbot.name}</h1>
             </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
             <Link href={`/app/chatbots/${chatbot.id}/settings`}>
                 <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
                     <Settings className="h-5 w-5" />
@@ -227,7 +226,7 @@ export default function ChatbotPage() {
 
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto flex flex-col">
-        <div className="container mx-auto px-4 py-8 max-w-2xl flex-1">
+        <div className="container mx-auto px-4 py-8 max-w-4xl flex-1">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12">
               <h2 className={`text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
@@ -240,20 +239,20 @@ export default function ChatbotPage() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-xs px-4 py-3 rounded-lg shadow-md ${ 
+                    className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-lg shadow-md ${
                       message.role === "user"
                         ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
                         : "bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none"
                     }`}>
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm break-words">{message.content}</p>
                   </div>
                 </div>
               ))}
               {sending && (
-                <div className="flex gap-4 justify-start">
+                <div className="flex gap-3 justify-start">
                   <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
                     <Loader2 className="h-4 w-4 animate-spin text-white" />
                   </div>
@@ -267,7 +266,7 @@ export default function ChatbotPage() {
 
       {/* Input Area */}
       <div className="border-t border-white/20 bg-black/20">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
+        <div className="container mx-auto px-4 py-4 max-w-4xl">
           {limitReached ? (
             <div className="text-center text-red-400 py-4">
               <p>You have reached your daily limit. Please upgrade for more usage.</p>

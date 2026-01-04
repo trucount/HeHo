@@ -25,8 +25,8 @@ interface Usage {
   tokens: number
 }
 
-const TOKEN_LIMIT_PER_DAY = 1000000
-const MESSAGE_LIMIT_PER_DAY = 10000
+const TOKEN_LIMIT_PER_DAY = 250000
+const MESSAGE_LIMIT_PER_DAY = 100
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -139,7 +139,7 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground">Your Plan</h2>
             <p className="text-sm text-muted-foreground">
-              Free tier - Unlimited chatbots, 10K messages/day, 1M tokens/day
+              Free tier - One chatbots, 100 messages/day, 250K tokens/day
             </p>
           </div>
           <Badge className="bg-black text-white border border-white/20">Free Plan</Badge>

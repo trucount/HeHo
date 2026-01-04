@@ -1,18 +1,19 @@
 'use client'
 
-import type React from 'react'
-import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
-import { useParams } from 'next/navigation'
-import { Send, Loader2 } from 'lucide-react'
+import type React from "react"
+import { useState, useEffect, useRef } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card } from "@/components/ui/card"
+import { useParams } from "next/navigation"
+import { Send, Loader2 } from "lucide-react"
 
 interface Message {
   id: string
-  role: 'user' | 'assistant'
+  role: "user" | "assistant"
   content: string
+  timestamp: Date
 }
 
 interface Chatbot {
@@ -21,6 +22,8 @@ interface Chatbot {
   model: string
   theme: string
 }
+
+const MESSAGE_LIMIT = 100
 
 const THEMES = [
   { value: 'twilight', label: 'Twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
@@ -36,10 +39,11 @@ const THEMES = [
 export default function SharedChatbotPage() {
   const [chatbot, setChatbot] = useState<Chatbot | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState("")
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [limitReached, setLimitReached] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const supabase = createClient()
@@ -52,7 +56,6 @@ export default function SharedChatbotPage() {
         setLoading(false)
         return
       }
-
       try {
         const { data: shareData, error: shareError } = await supabase
           .from('chatbot_shares')
@@ -83,7 +86,6 @@ export default function SharedChatbotPage() {
           setLoading(false)
           return
         }
-
         setChatbot(chatbotData)
       } catch (err) {
         console.error('Error loading shared chatbot:', err)
@@ -92,28 +94,41 @@ export default function SharedChatbotPage() {
         setLoading(false)
       }
     }
-
     fetchChatbotInfo()
   }, [shareToken, supabase])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+ const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || sending) return
+    
+    if (limitReached || !input.trim() || sending) return
+
+    const userMessageCount = messages.filter((msg) => msg.role === 'user').length
+    
+    if (userMessageCount >= MESSAGE_LIMIT) {
+        setLimitReached(true)
+        return
+    }
 
     setSending(true)
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: input,
+      timestamp: new Date(),
     }
 
-    const newMessages = [...messages, userMessage]
+    const newMessages = [...messages, userMessage];
     setMessages(newMessages)
     setInput('')
+
+    const newUserMessageCount = userMessageCount + 1;
+    if (newUserMessageCount >= MESSAGE_LIMIT) {
+      setLimitReached(true)
+    }
 
     try {
       const response = await fetch('/api/chat', {
@@ -121,14 +136,14 @@ export default function SharedChatbotPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shareToken,
-          message: input,
-          history: newMessages.slice(0, -1),
+          message: userMessage.content,
+          history: messages, 
           isPublic: true,
         }),
       })
 
       if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json()
           throw new Error(errorData.error || 'Failed to get response from the server.')
       }
 
@@ -138,23 +153,25 @@ export default function SharedChatbotPage() {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: reply,
+        timestamp: new Date(),
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages((prevMessages) => [...prevMessages, assistantMessage])
     } catch (error: any) {
       console.error('Chat error:', error)
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
         role: 'assistant',
         content: `Sorry, an error occurred: ${error.message}`,
+        timestamp: new Date(),
       }
-      setMessages(prev => [...prev, errorMessage])
+      setMessages((prevMessages) => [...prevMessages, errorMessage])
     } finally {
       setSending(false)
     }
   }
   
-  const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0];
+  const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0]
 
   if (loading) {
     return (
@@ -176,78 +193,82 @@ export default function SharedChatbotPage() {
   }
 
   if (!chatbot) {
-    return null // Should not happen if loading and error states are handled
+    return null
   }
 
   return (
     <div className={`h-screen w-full flex flex-col ${selectedTheme.color}`}>
-      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
-        <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <h2 className={`text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
-              <p className={`${selectedTheme.textColor}/80`}>
-                This is a shared chatbot. Your conversation is temporary.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-lg shadow-md ${ 
-                      message.role === 'user'
-                        ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
-                        : 'bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </div>
-              ))}
-              {sending && (
-                <div className="flex gap-4 justify-start">
-                  <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+        <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
+            <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot?.name}</h1>
         </div>
-      </div>
 
-      <div className="border-t border-white/20 bg-black/20">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
-          <form onSubmit={handleSendMessage} className="flex gap-3">
-            <Input
-              placeholder={`Message ${chatbot.name}...`}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={sending}
-              className={`flex-1 bg-white/10 ${selectedTheme.textColor} placeholder-white/60 border-white/30 rounded-full focus:ring-2 focus:ring-white/50`}
-            />
-            <Button
-              type="submit"
-              disabled={sending || !input.trim()}
-              className={`p-3 rounded-full ${selectedTheme.color} ${selectedTheme.textColor} hover:opacity-90 disabled:opacity-50 transition-opacity`}
-            >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            </Button>
-          </form>
-          <p className="text-xs text-center text-white/50 pt-2">
-  Powered by <a href="https://heho.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">HeHo</a>.
-</p>
+        <div className="flex-1 overflow-y-auto">
+            <div className="container mx-auto px-4 py-8 max-w-2xl">
+            {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <h2 className={`text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
+                <p className={`${selectedTheme.textColor}/80`}>
+                    This is a shared chatbot. Your conversation is temporary.
+                </p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                {messages.map((message) => (
+                    <div
+                    key={message.id}
+                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                        className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-lg shadow-md ${
+                        message.role === 'user'
+                            ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
+                            : 'bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none'
+                        }`}>
+                        <p className="text-sm break-words">{message.content}</p>
+                    </div>
+                    </div>
+                ))}
+                {sending && (
+                    <div className="flex gap-3 justify-start">
+                    <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                    </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+                </div>
+            )}
+            </div>
         </div>
-      </div>
+
+        <div className="border-t border-white/20 bg-black/20">
+            <div className="container mx-auto px-4 py-4 max-w-2xl">
+            {limitReached ? (
+                <div className="text-center text-red-400 py-4">
+                <p>You have reached your daily limit. Please upgrade for more usage.</p>
+                </div>
+            ) : (
+                <form onSubmit={handleSendMessage} className="flex gap-3">
+                    <Input
+                    placeholder={`Message ${chatbot?.name}...`}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    disabled={sending}
+                    className={`flex-1 bg-white/10 ${selectedTheme.textColor} placeholder-white/60 border-white/30 rounded-full focus:ring-2 focus:ring-white/50`}
+                    />
+                    <Button
+                    type="submit"
+                    disabled={sending || !input.trim()}
+                    className={`p-3 rounded-full ${selectedTheme.color} ${selectedTheme.textColor} hover:opacity-90 disabled:opacity-50 transition-opacity`}
+                    >
+                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    </Button>
+                </form>
+            )}
+            <p className="text-xs text-center text-white/50 pt-2">Powered by Heho.</p>
+            </div>
+        </div>
     </div>
   )
 }
+
+

@@ -105,7 +105,7 @@ export default function PublicChatPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center p-4">
           <p className="text-foreground text-xl mb-4">{error}</p>
           <Link href="/">
             <Button className="bg-white hover:bg-gray-200 text-black">Go Home</Button>
@@ -120,18 +120,18 @@ export default function PublicChatPage() {
       {/* Header */}
       <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-lg font-bold text-foreground">{chatbot?.name || "Chat"}</h1>
-            <p className="text-xs text-muted-foreground">{chatbot?.goal}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-foreground truncate">{chatbot?.name || "Chat"}</h1>
+            <p className="text-xs text-muted-foreground truncate">{chatbot?.goal}</p>
           </div>
           <Link href="/">
             <Button
               variant="outline"
               size="sm"
-              className="border-border/50 text-foreground hover:bg-white/10 bg-transparent"
+              className="border-border/50 text-foreground hover:bg-white/10 bg-transparent ml-4"
             >
-              <Home className="h-4 w-4 mr-2" />
-              Home
+              <Home className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Home</span>
             </Button>
           </Link>
         </div>
@@ -139,10 +139,10 @@ export default function PublicChatPage() {
 
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Chat with {chatbot?.name}</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-2 text-center">Chat with {chatbot?.name}</h2>
               <p className="text-muted-foreground text-center max-w-md">
                 Ask me anything about {chatbot?.name}. I have access to relevant data and can help you with your
                 questions.
@@ -153,21 +153,21 @@ export default function PublicChatPage() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-xs px-4 py-3 rounded-lg ${
+                    className={`max-w-[85%] md:max-w-2xl px-4 py-3 rounded-lg ${
                       message.role === "user"
                         ? "bg-black text-white rounded-br-none border border-white/20"
                         : "bg-card/50 border border-border/50 text-foreground rounded-bl-none"
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm break-words">{message.content}</p>
                   </div>
                 </div>
               ))}
               {sending && (
-                <div className="flex gap-4 justify-start">
+                <div className="flex gap-3 justify-start">
                   <div className="bg-card/50 border border-border/50 text-foreground rounded-lg rounded-bl-none px-4 py-3">
                     <Loader2 className="h-4 w-4 animate-spin text-white" />
                   </div>
@@ -181,7 +181,7 @@ export default function PublicChatPage() {
 
       {/* Input Area */}
       <div className="border-t border-border/50 bg-background sticky bottom-0">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
+        <div className="container mx-auto px-4 py-4 max-w-4xl">
           <form onSubmit={handleSendMessage} className="flex gap-3">
             <Input
               placeholder="Ask your question..."
@@ -193,7 +193,7 @@ export default function PublicChatPage() {
             <Button
               type="submit"
               disabled={sending || !input.trim()}
-              className="bg-white hover:bg-gray-200 text-black px-6"
+              className="bg-white hover:bg-gray-200 text-black px-5"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
