@@ -90,7 +90,7 @@ export default function ChatbotSettingsPage() {
           tone: chatbotData.tone,
           model: chatbotData.model,
           theme: chatbotData.theme || "sky",
-          data_table_name: chatbotData.data_table_name || "",
+          data_table_name: chatbotData.data_table_name || "_none_",
         })
 
         // Fetch connected tables
@@ -123,7 +123,7 @@ export default function ChatbotSettingsPage() {
           tone: formData.tone,
           model: formData.model,
           theme: formData.theme,
-          data_table_name: formData.data_table_name || null,
+          data_table_name: formData.data_table_name === '_none_' ? null : formData.data_table_name,
         })
         .eq("id", chatbotId)
 
@@ -202,12 +202,12 @@ export default function ChatbotSettingsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Data Source</label>
-                  <Select value={formData.data_table_name} onValueChange={(value) => setFormData({ ...formData, data_table_name: value })}>
+                  <Select value={formData.data_table_name || '_none_'} onValueChange={(value) => setFormData({ ...formData, data_table_name: value })}>
                     <SelectTrigger className="bg-background/50 border-border/50">
                       <SelectValue placeholder="Select a table" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="_none_">None</SelectItem>
                       {connectedTables.map((t) => (
                         <SelectItem key={t.id} value={t.table_name}>
                            <div className="flex items-center gap-2">
