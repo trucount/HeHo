@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, Loader2, ArrowRight, Sparkles } from 'lucide-react'
+import { AlertCircle, Loader2, ArrowRight, Sparkles, Database } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import Link from 'next/link'
 
@@ -75,6 +75,11 @@ const THEMES = [
   { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400' },
 ]
 
+interface ConnectedTable {
+  id: number
+  table_name: string
+}
+
 export default function CreateChatbotPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -87,34 +92,48 @@ export default function CreateChatbotPage() {
     tone: 'professional',
     model: '',
     theme: 'sky',
+    data_table_name: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [chatbotCount, setChatbotCount] = useState(0)
+  const [connectedTables, setConnectedTables] = useState<ConnectedTable[]>([])
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkUserAndPlan = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
+    const loadInitialData = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
-        router.push('/login')
-        return
+        router.push('/login');
+        return;
       }
-      setUser(currentUser)
+      setUser(currentUser);
 
-      const { data, count } = await supabase
+      // Fetch chatbot count
+      const { count } = await supabase
         .from('chatbots')
         .select('*', { count: 'exact' })
-        .eq('user_id', currentUser.id)
+        .eq('user_id', currentUser.id);
+      setChatbotCount(count || 0);
+      
+      // Fetch connected tables
+      const { data: tablesData, error: tablesError } = await supabase
+        .from('user_connected_tables')
+        .select('id, table_name')
+        .eq('user_id', currentUser.id);
 
-      setChatbotCount(count || 0)
-      setLoading(false)
-    }
+      if (tablesError) {
+        console.error("Error fetching tables: ", tablesError.message);
+        setError("Failed to load connected tables. Please try again.")
+      } else {
+        setConnectedTables(tablesData || []);
+      }
 
-    checkUserAndPlan()
-  }, [])
+      setLoading(false);
+    };
+
+    loadInitialData();
+  }, [supabase, router]);
 
   const generatePromptFromGoal = async () => {
     if (!formData.name || !formData.goal) {
@@ -182,6 +201,7 @@ export default function CreateChatbotPage() {
           tone: formData.tone,
           model: formData.model,
           theme: formData.theme,
+          data_table_name: formData.data_table_name === '_none_' ? null : formData.data_table_name,
           status: 'active',
         })
         .select()
@@ -298,6 +318,30 @@ export default function CreateChatbotPage() {
                   <p className='text-xs text-muted-foreground mt-1'>
                     {formData.description.length}/5000 characters (min 200 required)
                   </p>
+                </div>
+
+                {/* Data Source */}
+                <div>
+                  <label className='block text-sm font-medium text-foreground mb-2'>Data Source (Optional)</label>
+                  <Select value={formData.data_table_name} onValueChange={(value) => setFormData({ ...formData, data_table_name: value })}>
+                    <SelectTrigger className='bg-background/50 border-border/50'>
+                      <SelectValue placeholder='Select a table' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='_none_'>None</SelectItem>
+                      {connectedTables.map((t) => (
+                        <SelectItem key={t.id} value={t.table_name}>
+                          <div className="flex items-center gap-2">
+                            <Database className="h-4 w-4" />
+                            {t.table_name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                   {connectedTables.length === 0 && (
+                    <p className='text-xs text-muted-foreground mt-2'>No database tables connected. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
+                  )}
                 </div>
 
                 {/* Tone */}

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter, useParams } from "next/navigation"
-import { Loader2, AlertCircle, ArrowLeft } from "lucide-react"
+import { Loader2, AlertCircle, ArrowLeft, Database } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -37,6 +37,11 @@ const THEMES = [
   { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
 ]
 
+interface ConnectedTable {
+  id: number
+  table_name: string
+}
+
 export default function ChatbotSettingsPage() {
   const [chatbot, setChatbot] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -48,16 +53,18 @@ export default function ChatbotSettingsPage() {
     tone: "professional",
     model: "",
     theme: "sky",
+    data_table_name: "",
   })
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [connectedTables, setConnectedTables] = useState<ConnectedTable[]>([])
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
   const chatbotId = params.id as string
 
   useEffect(() => {
-    const loadChatbot = async () => {
+    const loadData = async () => {
       try {
         const {
           data: { user },
@@ -67,22 +74,29 @@ export default function ChatbotSettingsPage() {
           return
         }
 
-        const { data } = await supabase.from("chatbots").select("*").eq("id", chatbotId).eq("user_id", user.id).single()
+        // Fetch chatbot data
+        const { data: chatbotData } = await supabase.from("chatbots").select("*").eq("id", chatbotId).eq("user_id", user.id).single()
 
-        if (!data) {
+        if (!chatbotData) {
           router.push("/app/dashboard")
           return
         }
 
-        setChatbot(data)
+        setChatbot(chatbotData)
         setFormData({
-          name: data.name,
-          goal: data.goal,
-          description: data.description,
-          tone: data.tone,
-          model: data.model,
-          theme: data.theme || "sky",
+          name: chatbotData.name,
+          goal: chatbotData.goal,
+          description: chatbotData.description,
+          tone: chatbotData.tone,
+          model: chatbotData.model,
+          theme: chatbotData.theme || "sky",
+          data_table_name: chatbotData.data_table_name || "",
         })
+
+        // Fetch connected tables
+        const { data: tablesData } = await supabase.from('user_connected_tables').select('id, table_name').eq('user_id', user.id)
+        setConnectedTables(tablesData || [])
+
       } catch (err) {
         console.error(err)
         router.push("/app/dashboard")
@@ -91,7 +105,7 @@ export default function ChatbotSettingsPage() {
       }
     }
 
-    loadChatbot()
+    loadData()
   }, [chatbotId, router, supabase])
 
   const handleSave = async () => {
@@ -109,6 +123,7 @@ export default function ChatbotSettingsPage() {
           tone: formData.tone,
           model: formData.model,
           theme: formData.theme,
+          data_table_name: formData.data_table_name || null,
         })
         .eq("id", chatbotId)
 
@@ -183,6 +198,29 @@ export default function ChatbotSettingsPage() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="bg-background/50 border-border/50 min-h-32"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Data Source</label>
+                  <Select value={formData.data_table_name} onValueChange={(value) => setFormData({ ...formData, data_table_name: value })}>
+                    <SelectTrigger className="bg-background/50 border-border/50">
+                      <SelectValue placeholder="Select a table" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {connectedTables.map((t) => (
+                        <SelectItem key={t.id} value={t.table_name}>
+                           <div className="flex items-center gap-2">
+                            <Database className="h-4 w-4" />
+                            {t.table_name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {connectedTables.length === 0 && (
+                    <p className='text-xs text-muted-foreground mt-2'>No database tables connected. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
+                  )}
                 </div>
 
                 <div>

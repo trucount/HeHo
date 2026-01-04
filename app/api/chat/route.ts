@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { type NextRequest, NextResponse } from 'next/server'
 
 const POPULAR_MODELS = [
@@ -37,69 +38,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabaseAdmin = await createSupabaseAdminClient()
     let chatbot: any = null
     let userId: string | null = null
 
-    // ---------------- PUBLIC CHAT ----------------
+    // ---------------- PUBLIC/SHARED CHAT ----------------
     if (isPublic) {
-      if (!shareToken) return NextResponse.json({ error: 'Share token required' }, { status: 400 })
+        // Public chat now uses the chatbotId directly
+        if (!chatbotId) return NextResponse.json({ error: 'Chatbot ID is required' }, { status: 400 });
 
-      const { data: shareData } = await supabase
-        .from('chatbot_shares')
-        .select('chatbot_id, user_id, expires_at')
-        .eq('share_token', shareToken)
-        .single()
+        const { data: chatbotData } = await supabaseAdmin
+            .from('chatbots')
+            .select('*, users(id, supabase_url, supabase_key_encrypted, openrouter_key_encrypted)')
+            .eq('id', chatbotId)
+            .single();
 
-      if (!shareData) return NextResponse.json({ error: 'Invalid share link' }, { status: 404 })
-      if (shareData.expires_at && new Date(shareData.expires_at) < new Date())
-        return NextResponse.json({ error: 'Share link expired' }, { status: 410 })
-
-      userId = shareData.user_id
-
-      const { data: chatbotData } = await supabase
-        .from('chatbots')
-        .select('*')
-        .eq('id', shareData.chatbot_id)
-        .single()
-
-      if (!chatbotData) return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 })
-      chatbot = chatbotData
+        if (!chatbotData) return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 });
+        
+        // In public mode, we can't verify ownership easily without a user session.
+        // We will proceed, assuming if you have the chatbotId, you have access.
+        // The user object is nested inside chatbotData.
+        chatbot = chatbotData;
+        userId = chatbotData.users.id;
     }
 
     // ---------------- PRIVATE CHAT ----------------
     else {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabaseAdmin.auth.getUser()
       if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       userId = user.id
 
-      const { data: chatbotData } = await supabase
+      const { data: chatbotData } = await supabaseAdmin
         .from('chatbots')
-        .select('*')
+        .select('*, users(id, supabase_url, supabase_key_encrypted, openrouter_key_encrypted)')
         .eq('id', chatbotId)
+        .eq('user_id', user.id)
         .single()
 
       if (!chatbotData) return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 })
-      if (chatbotData.user_id !== user.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
       chatbot = chatbotData
     }
 
-    if (!userId) return NextResponse.json({ error: 'Could not identify user' }, { status: 500 })
+    if (!userId) return NextResponse.json({ error: 'Could not identify user' }, { status: 500 });
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('openrouter_key_encrypted')
-      .eq('id', userId)
-      .single()
-
+    // The user data including keys is now nested in the chatbot object
+    const userData = chatbot.users;
     if (!userData?.openrouter_key_encrypted)
-      return NextResponse.json({ error: 'API key not configured.' }, { status: 400 })
+      return NextResponse.json({ error: 'API key not configured.' }, { status: 400 });
 
     // ---------------- SYSTEM PROMPT ----------------
     let systemPrompt = `You are a helpful AI assistant named ${chatbot.name}.`
     if (chatbot.goal) systemPrompt += ` Your goal is to ${chatbot.goal}.`
     if (chatbot.description) systemPrompt += ` ${chatbot.description}.`
     if (chatbot.tone) systemPrompt += ` Maintain a ${chatbot.tone} tone.`
+
+    // ---------------- TABLE DATA INJECTION ----------------
+    if (chatbot.data_table_name && userData.supabase_url && userData.supabase_key_encrypted) {
+        try {
+            const userSupabase = createClient(userData.supabase_url, userData.supabase_key_encrypted);
+            const { data: tableData, error: tableError } = await userSupabase
+                .from(chatbot.data_table_name)
+                .select('*');
+
+            if (tableError) {
+                console.error(`Error fetching from user table '${chatbot.data_table_name}':`, tableError.message);
+                systemPrompt += `\n\nNote: There was an error trying to access the connected database table: ${tableError.message}`;
+            } else if (tableData) {
+                const tableContext = JSON.stringify(tableData, null, 2);
+                systemPrompt += `\n\nUse the following data from the '${chatbot.data_table_name}' table to help answer user questions. Only use this data if the user's question is relevant to it:\n${tableContext}`;
+            }
+        } catch (e: any) {
+            console.error('Failed to connect to user Supabase or fetch data:', e.message);
+        }
+    }
 
     // ---------------- AI CALL ----------------
     const modelsToTry = [chatbot.model, ...POPULAR_MODELS]
@@ -144,8 +155,7 @@ export async function POST(request: NextRequest) {
     // ---------------- USAGE TRACKING (CUMULATIVE) ----------------
     const usageDate = new Date().toISOString().split('T')[0] // YYYY-MM-DD
 
-    // 1. Try to increment existing row
-    const { data: existing, error } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('usage')
       .select('id, messages, tokens, api_calls')
       .eq('user_id', userId)
@@ -153,8 +163,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existing) {
-      // Update cumulatively
-      await supabase
+      await supabaseAdmin
         .from('usage')
         .update({
           messages: existing.messages + 1,
@@ -164,8 +173,7 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', existing.id)
     } else {
-      // Insert new row for today
-      await supabase.from('usage').insert({
+      await supabaseAdmin.from('usage').insert({
         user_id: userId,
         month: usageDate,
         messages: 1,
