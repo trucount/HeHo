@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { 
     Table, 
@@ -13,7 +13,12 @@ import {
     TableHead, 
     TableHeader, 
     TableRow 
-} from "@/components/ui/table"
+} from '@/components/ui/table'
+import {
+    ResizablePanelGroup,
+    ResizablePanel,
+    ResizableHandle,
+} from '@/components/ui/resizable'
 
 interface TableData {
     [key: string]: any
@@ -60,40 +65,49 @@ export default function ViewTablePage() {
   }, [tableName])
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-8">
-            <Button variant="outline" onClick={() => router.back()} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" />
+    <div className='min-h-screen bg-background'>
+      <div className='container mx-auto px-4 sm:px-6 py-8'>
+        <div className='mb-8'>
+            <Button variant='outline' onClick={() => router.back()} className='mb-4'>
+                <ArrowLeft className='mr-2 h-4 w-4' />
                 Back to Tables
             </Button>
-            <h1 className="text-3xl font-bold text-foreground">Viewing Table: {decodeURIComponent(tableName)}</h1>
-            <p className="text-muted-foreground">Showing the first 100 rows of your table.</p>
+            <h1 className='text-3xl font-bold text-foreground'>Viewing Table: {decodeURIComponent(tableName)}</h1>
+            <p className='text-muted-foreground'>Showing the first 100 rows of your table.</p>
         </div>
 
-        <Card className="border-border/50 bg-card/50">
-            <CardContent className="pt-6">
+        <Card className='border-border/50 bg-card/50'>
+            <CardContent className='pt-6'>
                 {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    <div className='flex items-center justify-center py-20'>
+                        <Loader2 className='h-8 w-8 animate-spin text-white' />
                     </div>
                 ) : error ? (
-                    <div className="py-20">
-                        <Alert variant="destructive">
-                            <AlertTriangle className="h-4 w-4"/>
+                    <div className='py-20'>
+                        <Alert variant='destructive'>
+                            <AlertTriangle className='h-4 w-4'/>
                             <AlertTitle>Error Fetching Data</AlertTitle>
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     </div>
                 ) : data.length === 0 ? (
-                    <div className="text-center py-20">
-                        <p className="text-muted-foreground">No data found in this table.</p>
+                    <div className='text-center py-20'>
+                        <p className='text-muted-foreground'>No data found in this table.</p>
                     </div>
                 ) : (
-                    <div className="w-full overflow-x-auto">
+                    <ResizablePanelGroup direction='horizontal' className='w-full overflow-x-auto'>
                         <Table>
                             <TableHeader>
-                                <TableRow>{columns.map(col => <TableHead key={col}>{col}</TableHead>)}</TableRow>
+                                <TableRow>
+                                    {columns.map((col, index) => (
+                                        <React.Fragment key={col}>
+                                            <ResizablePanel asChild defaultSize={150}>
+                                                <TableHead>{col}</TableHead>
+                                            </ResizablePanel>
+                                            {index < columns.length - 1 && <ResizableHandle withHandle />}
+                                        </React.Fragment>
+                                    ))}
+                                </TableRow>
                             </TableHeader>
                             <TableBody>
                             {data.map((row, rowIndex) => (
@@ -103,7 +117,7 @@ export default function ViewTablePage() {
                             ))}
                             </TableBody>
                         </Table>
-                    </div>
+                    </ResizablePanelGroup>
                 )}
             </CardContent>
         </Card>
