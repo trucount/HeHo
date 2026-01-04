@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { Loader2, Database, Plus, Link2, X } from "lucide-react"
+import { Loader2, Database, Link2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -18,22 +18,10 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableHeader, 
-    TableRow 
-} from "@/components/ui/table"
 
 interface ConnectedTable {
   id: number
   table_name: string
-}
-
-interface TableData {
-    [key: string]: any
 }
 
 export default function DatabasePage() {
@@ -45,19 +33,13 @@ export default function DatabasePage() {
   const [tableName, setTableName] = useState('')
   const [connecting, setConnecting] = useState(false)
 
-  // State for viewing table data
-  const [showDataDialog, setShowDataDialog] = useState(false)
-  const [viewingTable, setViewingTable] = useState<ConnectedTable | null>(null)
-  const [tableData, setTableData] = useState<TableData[]>([])
-  const [tableColumns, setTableColumns] = useState<string[]>([])
-  const [viewingData, setViewingData] = useState(false)
-  const [viewError, setViewError] = useState<string | null>(null)
-
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     const loadDatabaseInfo = async () => {
+      setLoading(true)
+      setError(null)
       try {
         const { data: { user: currentUser } } = await supabase.auth.getUser()
         if (!currentUser) {
@@ -69,7 +51,6 @@ export default function DatabasePage() {
         const { data: userData } = await supabase.from("users").select("supabase_url, supabase_key_encrypted").eq("id", currentUser.id).single()
         if (!userData?.supabase_url || !userData?.supabase_key_encrypted) {
           setError("Supabase not configured. Please set it up in settings to connect tables.")
-          setLoading(false)
           return
         }
 
@@ -105,42 +86,8 @@ export default function DatabasePage() {
     }
   }
 
-  const handleViewData = async (table: ConnectedTable) => {
-    setViewingTable(table)
-    setShowDataDialog(true)
-    setViewingData(true)
-    setViewError(null)
-    setTableData([])
-    setTableColumns([])
-
-    try {
-      const response = await fetch('/api/database/view', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tableName: table.table_name }),
-      })
-
-      if (!response.ok) {
-        // Attempt to get error message from body, otherwise use status text
-        let errorMessage = `Error: ${response.status} ${response.statusText}`;
-        try {
-            const errorResult = await response.json();
-            errorMessage = errorResult.error || errorMessage;
-        } catch (e) {
-            // The body was not JSON or was empty, do nothing
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json()
-      setTableData(result.data || [])
-      setTableColumns(result.columns || [])
-
-    } catch (err: any) {
-      setViewError(err.message)
-    } finally {
-      setViewingData(false)
-    }
+  const handleViewData = (table: ConnectedTable) => {
+    router.push(`/app/database/${encodeURIComponent(table.table_name)}`)
   }
 
   if (loading) {
@@ -213,8 +160,8 @@ export default function DatabasePage() {
                       <CardTitle className="text-foreground flex items-center gap-2"><Database className="h-5 w-5" />{table.table_name}</CardTitle>
                     </CardHeader>
                     <CardContent className="flex-grow flex items-end">
-                      <Button variant="outline" className="w-full" onClick={() => handleViewData(table)} disabled={viewingData && viewingTable?.id === table.id}>
-                        {viewingData && viewingTable?.id === table.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : null} View Data
+                      <Button variant="outline" className="w-full" onClick={() => handleViewData(table)}>
+                         View Data
                       </Button>
                     </CardContent>
                   </Card>
@@ -224,44 +171,6 @@ export default function DatabasePage() {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={showDataDialog} onOpenChange={setShowDataDialog}>
-        <DialogContent className="max-w-4xl h-3/4 flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Viewing Table: {viewingTable?.table_name}</DialogTitle>
-            <DialogDescription>Showing the first 100 rows of your table.</DialogDescription>
-          </DialogHeader>
-          <div className="flex-grow overflow-auto border rounded-md">
-            {viewingData ? (
-              <div className="w-full h-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : viewError ? (
-              <div className="w-full h-full flex items-center justify-center p-8">
-                <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{viewError}</AlertDescription></Alert>
-              </div>
-            ) : tableData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center p-8">
-                    <p className="text-muted-foreground">No data found in this table.</p>
-                </div>
-            ) : (
-              <Table>
-                <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm">
-                  <TableRow>{tableColumns.map(col => <TableHead key={col}>{col}</TableHead>)}</TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tableData.map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {tableColumns.map(col => <TableCell key={col}>{String(row[col])}</TableCell>)} 
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowDataDialog(false)} variant="outline">Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
