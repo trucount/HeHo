@@ -28,7 +28,31 @@ export default function PublicChatPage() {
   const supabase = createClient()
   const chatbotId = params.chatbotId as string
 
-  /* ---------------- Load chatbot ---------------- */
+  /* ================= REAL VIEWPORT FIX ================= */
+  useEffect(() => {
+    const setViewportHeight = () => {
+      const height =
+        window.visualViewport?.height || window.innerHeight
+      document.documentElement.style.setProperty(
+        "--app-height",
+        `${height}px`
+      )
+    }
+
+    setViewportHeight()
+
+    window.visualViewport?.addEventListener("resize", setViewportHeight)
+    window.visualViewport?.addEventListener("scroll", setViewportHeight)
+    window.addEventListener("resize", setViewportHeight)
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", setViewportHeight)
+      window.visualViewport?.removeEventListener("scroll", setViewportHeight)
+      window.removeEventListener("resize", setViewportHeight)
+    }
+  }, [])
+
+  /* ================= Load chatbot ================= */
   useEffect(() => {
     const loadChatbot = async () => {
       try {
@@ -54,12 +78,12 @@ export default function PublicChatPage() {
     loadChatbot()
   }, [chatbotId])
 
-  /* ---------------- Auto scroll ---------------- */
+  /* ================= Auto scroll ================= */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  /* ---------------- Send message ---------------- */
+  /* ================= Send message ================= */
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || !chatbot) return
@@ -107,10 +131,10 @@ export default function PublicChatPage() {
     }
   }
 
-  /* ---------------- Loading / Error ---------------- */
+  /* ================= Loading / Error ================= */
   if (loading) {
     return (
-      <div className="h-[100dvh] flex items-center justify-center">
+      <div className="flex items-center justify-center h-[var(--app-height)]">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
@@ -118,7 +142,7 @@ export default function PublicChatPage() {
 
   if (error) {
     return (
-      <div className="h-[100dvh] flex items-center justify-center text-center">
+      <div className="flex items-center justify-center h-[var(--app-height)] text-center">
         <div>
           <p className="mb-4 text-lg">{error}</p>
           <Link href="/">
@@ -129,19 +153,13 @@ export default function PublicChatPage() {
     )
   }
 
-  /* ---------------- Main Layout ---------------- */
+  /* ================= MAIN LAYOUT ================= */
   return (
     <div
-      className="
-        h-[100dvh]
-        flex flex-col
-        bg-background
-        overscroll-none
-        pt-[env(safe-area-inset-top)]
-        pb-[env(safe-area-inset-bottom)]
-      "
+      className="flex flex-col bg-background overscroll-none"
+      style={{ height: "var(--app-height)" }}
     >
-      {/* ================= Header ================= */}
+      {/* ===== Header ===== */}
       <header className="shrink-0 border-b bg-card/40 backdrop-blur z-50">
         <div className="max-w-2xl mx-auto px-3 py-3 flex items-center justify-between">
           <div className="min-w-0">
@@ -161,7 +179,7 @@ export default function PublicChatPage() {
         </div>
       </header>
 
-      {/* ================= Messages ================= */}
+      {/* ===== Messages (ONLY this scrolls) ===== */}
       <main className="flex-1 overflow-y-auto overscroll-contain">
         <div className="max-w-2xl mx-auto px-3 py-4 space-y-3">
           {messages.length === 0 && (
@@ -183,18 +201,11 @@ export default function PublicChatPage() {
               }`}
             >
               <div
-                className={`
-                  max-w-[88%]
-                  px-3 py-2
-                  text-sm
-                  rounded-xl
-                  break-words
-                  ${
-                    message.role === "user"
-                      ? "bg-black text-white rounded-br-md"
-                      : "bg-card border rounded-bl-md"
-                  }
-                `}
+                className={`max-w-[88%] px-3 py-2 text-sm rounded-xl break-words ${
+                  message.role === "user"
+                    ? "bg-black text-white rounded-br-md"
+                    : "bg-card border rounded-bl-md"
+                }`}
               >
                 {message.content}
               </div>
@@ -213,7 +224,7 @@ export default function PublicChatPage() {
         </div>
       </main>
 
-      {/* ================= Input ================= */}
+      {/* ===== Input ===== */}
       <footer className="shrink-0 border-t bg-background">
         <form
           onSubmit={handleSendMessage}
