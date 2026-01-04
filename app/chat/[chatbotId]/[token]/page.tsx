@@ -22,11 +22,13 @@ export default function PublicChatPage() {
   const [loading, setLoading] = useState(true)
   const [chatbot, setChatbot] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const supabase = createClient()
   const chatbotId = params.chatbotId as string
 
+  /* ---------------- Load chatbot ---------------- */
   useEffect(() => {
     const loadChatbot = async () => {
       try {
@@ -40,6 +42,7 @@ export default function PublicChatPage() {
           setError("Chatbot not found")
           return
         }
+
         setChatbot(data)
       } catch {
         setError("Failed to load chatbot")
@@ -47,13 +50,16 @@ export default function PublicChatPage() {
         setLoading(false)
       }
     }
+
     loadChatbot()
   }, [chatbotId])
 
+  /* ---------------- Auto scroll ---------------- */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  /* ---------------- Send message ---------------- */
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || !chatbot) return
@@ -68,7 +74,7 @@ export default function PublicChatPage() {
     ])
 
     try {
-      const res = await fetch("/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -79,7 +85,9 @@ export default function PublicChatPage() {
         }),
       })
 
-      const { reply } = await res.json()
+      if (!response.ok) throw new Error()
+
+      const { reply } = await response.json()
 
       setMessages((prev) => [
         ...prev,
@@ -91,7 +99,7 @@ export default function PublicChatPage() {
         {
           id: (Date.now() + 2).toString(),
           role: "assistant",
-          content: "Sorry, something went wrong.",
+          content: "Sorry, something went wrong. Please try again.",
         },
       ])
     } finally {
@@ -99,9 +107,10 @@ export default function PublicChatPage() {
     }
   }
 
+  /* ---------------- Loading / Error ---------------- */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-[100dvh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
@@ -109,9 +118,9 @@ export default function PublicChatPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-center">
+      <div className="h-[100dvh] flex items-center justify-center text-center">
         <div>
-          <p className="mb-4">{error}</p>
+          <p className="mb-4 text-lg">{error}</p>
           <Link href="/">
             <Button>Go Home</Button>
           </Link>
@@ -120,54 +129,81 @@ export default function PublicChatPage() {
     )
   }
 
+  /* ---------------- Main Layout ---------------- */
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card/40 backdrop-blur">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <h1 className="text-base sm:text-lg font-bold">
-              {chatbot?.name}
+    <div
+      className="
+        h-[100dvh]
+        flex flex-col
+        bg-background
+        overscroll-none
+        pt-[env(safe-area-inset-top)]
+        pb-[env(safe-area-inset-bottom)]
+      "
+    >
+      {/* ================= Header ================= */}
+      <header className="shrink-0 border-b bg-card/40 backdrop-blur z-50">
+        <div className="max-w-2xl mx-auto px-3 py-3 flex items-center justify-between">
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold truncate">
+              {chatbot?.name || "Chat"}
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground truncate">
               {chatbot?.goal}
             </p>
           </div>
 
           <Link href="/">
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">
-              <Home className="h-4 w-4 mr-2" />
-              Home
+            <Button variant="ghost" size="icon">
+              <Home className="h-4 w-4" />
             </Button>
           </Link>
         </div>
       </header>
 
-      {/* Messages */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-          {messages.map((msg) => (
+      {/* ================= Messages ================= */}
+      <main className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="max-w-2xl mx-auto px-3 py-4 space-y-3">
+          {messages.length === 0 && (
+            <div className="text-center py-12">
+              <h2 className="text-lg font-semibold mb-1">
+                Chat with {chatbot?.name}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Ask anything to get started
+              </p>
+            </div>
+          )}
+
+          {messages.map((message) => (
             <div
-              key={msg.id}
+              key={message.id}
               className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
+                message.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
               <div
-                className={`px-4 py-2 text-sm rounded-lg max-w-[85%] sm:max-w-xs break-words ${
-                  msg.role === "user"
-                    ? "bg-black text-white rounded-br-none"
-                    : "bg-card border rounded-bl-none"
-                }`}
+                className={`
+                  max-w-[88%]
+                  px-3 py-2
+                  text-sm
+                  rounded-xl
+                  break-words
+                  ${
+                    message.role === "user"
+                      ? "bg-black text-white rounded-br-md"
+                      : "bg-card border rounded-bl-md"
+                  }
+                `}
               >
-                {msg.content}
+                {message.content}
               </div>
             </div>
           ))}
 
           {sending && (
             <div className="flex justify-start">
-              <div className="px-4 py-2 rounded-lg bg-card">
+              <div className="px-3 py-2 rounded-xl bg-card">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             </div>
@@ -177,24 +213,25 @@ export default function PublicChatPage() {
         </div>
       </main>
 
-      {/* Input */}
-      <footer className="sticky bottom-0 border-t bg-background">
+      {/* ================= Input ================= */}
+      <footer className="shrink-0 border-t bg-background">
         <form
           onSubmit={handleSendMessage}
-          className="max-w-2xl mx-auto px-4 py-3 flex gap-2"
+          className="max-w-2xl mx-auto px-3 py-2 flex items-center gap-2"
         >
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message…"
+            placeholder="Message…"
             disabled={sending}
-            className="flex-1"
+            className="flex-1 rounded-full px-4"
           />
 
           <Button
             type="submit"
+            size="icon"
             disabled={sending || !input.trim()}
-            className="px-4"
+            className="rounded-full"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
