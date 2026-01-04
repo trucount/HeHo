@@ -30,8 +30,8 @@ interface Usage {
   tokens: number
 }
 
-const MESSAGE_LIMIT = 10000
-const TOKEN_LIMIT = 1000000
+const MESSAGE_LIMIT = 100
+const TOKEN_LIMIT = 250000
 
 const THEMES = [
   { value: 'twilight', label: 'Twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
@@ -198,17 +198,17 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div className={`h-full w-full flex flex-col ${selectedTheme.color}`}>
+    <div className={`h-screen w-screen flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
-      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
-        <div className="flex items-center gap-4">
+      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/app/chatbots">
                 <Button variant="ghost" size="icon" className={`${selectedTheme.textColor} hover:bg-white/10`}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
             <div>
-                <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
+                <h1 className={`font-bold text-base sm:text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
             </div>
         </div>
         <div className="flex items-center gap-2">
@@ -227,10 +227,10 @@ export default function ChatbotPage() {
 
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto flex flex-col">
-        <div className="container mx-auto px-4 py-8 max-w-2xl flex-1">
+        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-2xl flex-1">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12">
-              <h2 className={`text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
+              <h2 className={`text-xl sm:text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
               <p className={`${selectedTheme.textColor}/80 text-center`}>
                 Chat with {chatbot.name}. Messages are processed in real-time.
               </p>
@@ -267,13 +267,13 @@ export default function ChatbotPage() {
 
       {/* Input Area */}
       <div className="border-t border-white/20 bg-black/20">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4 max-w-2xl">
           {limitReached ? (
             <div className="text-center text-red-400 py-4">
               <p>You have reached your daily limit. Please upgrade for more usage.</p>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="flex gap-3">
+            <form onSubmit={handleSendMessage} className="flex gap-2 sm:gap-3">
               <Input
                 placeholder="Ask your chatbot..."
                 value={input}

@@ -20,7 +20,16 @@ interface Chatbot {
   name: string
   model: string
   theme: string
+  user_id: string
 }
+
+interface Usage {
+  messages: number
+  tokens: number
+}
+
+const MESSAGE_LIMIT = 100
+const TOKEN_LIMIT = 250000
 
 const THEMES = [
   { value: 'twilight', label: 'Twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
@@ -40,6 +49,8 @@ export default function SharedChatbotPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [usage, setUsage] = useState<Usage>({ messages: 0, tokens: 0 })
+  const [limitReached, setLimitReached] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const supabase = createClient()
@@ -74,7 +85,7 @@ export default function SharedChatbotPage() {
 
         const { data: chatbotData, error: chatbotError } = await supabase
           .from('chatbots')
-          .select('id, name, model, theme')
+          .select('id, name, model, theme, user_id')
           .eq('id', shareData.chatbot_id)
           .single()
 
@@ -85,6 +96,27 @@ export default function SharedChatbotPage() {
         }
 
         setChatbot(chatbotData)
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const todayString = today.toISOString()
+
+        const { data: usageData, error: usageError } = await supabase
+          .from("usage")
+          .select("messages, tokens")
+          .eq("user_id", chatbotData.user_id)
+          .gte("created_at", todayString)
+
+        if (!usageError && usageData && usageData.length > 0) {
+          const totalMessages = usageData.reduce((acc, item) => acc + (item.messages || 0), 0)
+          const totalTokens = usageData.reduce((acc, item) => acc + (item.tokens || 0), 0)
+          setUsage({ messages: totalMessages, tokens: totalTokens })
+
+          if (totalMessages >= MESSAGE_LIMIT || totalTokens >= TOKEN_LIMIT) {
+            setLimitReached(true)
+          }
+        }
+
       } catch (err) {
         console.error('Error loading shared chatbot:', err)
         setError('An unexpected error occurred.')
@@ -102,7 +134,7 @@ export default function SharedChatbotPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || sending) return
+    if (!input.trim() || sending || limitReached) return
 
     setSending(true)
     const userMessage: Message = {
@@ -132,7 +164,7 @@ export default function SharedChatbotPage() {
           throw new Error(errorData.error || 'Failed to get response from the server.')
       }
 
-      const { reply } = await response.json()
+      const { reply, tokens } = await response.json()
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -141,6 +173,13 @@ export default function SharedChatbotPage() {
       }
 
       setMessages(prev => [...prev, assistantMessage])
+
+      const updatedUsage = { messages: usage.messages + 1, tokens: usage.tokens + (tokens || 0) }
+      setUsage(updatedUsage)
+
+      if (updatedUsage.messages >= MESSAGE_LIMIT || updatedUsage.tokens >= TOKEN_LIMIT) {
+        setLimitReached(true)
+      }
     } catch (error: any) {
       console.error('Chat error:', error)
       const errorMessage: Message = {
@@ -182,14 +221,14 @@ export default function SharedChatbotPage() {
   return (
     <div className={`h-screen w-full flex flex-col ${selectedTheme.color}`}>
       <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
-        <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
+        <h1 className={`font-bold text-base sm:text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-2xl">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <h2 className={`text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
+              <h2 className={`text-xl sm:text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
               <p className={`${selectedTheme.textColor}/80`}>
                 This is a shared chatbot. Your conversation is temporary.
               </p>
@@ -206,8 +245,7 @@ export default function SharedChatbotPage() {
                       message.role === 'user'
                         ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
                         : 'bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none'
-                    }`}
-                  >
+                    }`}>
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
                 </div>
@@ -226,8 +264,13 @@ export default function SharedChatbotPage() {
       </div>
 
       <div className="border-t border-white/20 bg-black/20">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
-          <form onSubmit={handleSendMessage} className="flex gap-3">
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4 max-w-2xl">
+        {limitReached ? (
+            <div className="text-center text-red-400 py-4">
+              <p>This chatbot has reached its daily usage limit. Please try again later.</p>
+            </div>
+          ) : (
+          <form onSubmit={handleSendMessage} className="flex gap-2 sm:gap-3">
             <Input
               placeholder={`Message ${chatbot.name}...`}
               value={input}
@@ -243,6 +286,7 @@ export default function SharedChatbotPage() {
               {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </form>
+          )}
           <p className="text-xs text-center text-white/50 pt-2">
   Powered by <a href="https://heho.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">HeHo</a>.
 </p>
