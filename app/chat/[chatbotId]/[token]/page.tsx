@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -31,23 +30,23 @@ export default function PublicChatPage() {
   useEffect(() => {
     const loadChatbot = async () => {
       try {
-        const { data } = await supabase.from("chatbots").select("*").eq("id", chatbotId).single()
+        const { data } = await supabase
+          .from("chatbots")
+          .select("*")
+          .eq("id", chatbotId)
+          .single()
 
         if (!data) {
           setError("Chatbot not found")
-          setLoading(false)
           return
         }
-
         setChatbot(data)
-      } catch (err) {
-        console.error(err)
+      } catch {
         setError("Failed to load chatbot")
       } finally {
         setLoading(false)
       }
     }
-
     loadChatbot()
   }, [chatbotId])
 
@@ -59,34 +58,40 @@ export default function PublicChatPage() {
     e.preventDefault()
     if (!input.trim() || !chatbot) return
 
-    setSending(true)
-    setMessages([...messages, { id: Date.now().toString(), role: "user", content: input }])
+    const userMessage = input
     setInput("")
+    setSending(true)
+
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now().toString(), role: "user", content: userMessage },
+    ])
 
     try {
-      const response = await fetch("/api/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatbotId: chatbot.id,
-          message: input,
+          message: userMessage,
           history: messages,
           isPublic: true,
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to get response")
+      const { reply } = await res.json()
 
-      const { reply } = await response.json()
-      setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: reply }])
-    } catch (err) {
-      console.error(err)
+      setMessages((prev) => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: "assistant", content: reply },
+      ])
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 2).toString(),
           role: "assistant",
-          content: "Sorry, I encountered an error. Please try again.",
+          content: "Sorry, something went wrong.",
         },
       ])
     } finally {
@@ -96,19 +101,19 @@ export default function PublicChatPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-foreground text-xl mb-4">{error}</p>
+      <div className="min-h-screen flex items-center justify-center text-center">
+        <div>
+          <p className="mb-4">{error}</p>
           <Link href="/">
-            <Button className="bg-white hover:bg-gray-200 text-black">Go Home</Button>
+            <Button>Go Home</Button>
           </Link>
         </div>
       </div>
@@ -116,90 +121,89 @@ export default function PublicChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="sticky top-0 z-40 border-b bg-card/40 backdrop-blur">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-lg font-bold text-foreground">{chatbot?.name || "Chat"}</h1>
-            <p className="text-xs text-muted-foreground">{chatbot?.goal}</p>
+            <h1 className="text-base sm:text-lg font-bold">
+              {chatbot?.name}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {chatbot?.goal}
+            </p>
           </div>
+
           <Link href="/">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-border/50 text-foreground hover:bg-white/10 bg-transparent"
-            >
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <Home className="h-4 w-4 mr-2" />
               Home
             </Button>
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-12">
-              <h2 className="text-2xl font-bold text-foreground mb-2">Chat with {chatbot?.name}</h2>
-              <p className="text-muted-foreground text-center max-w-md">
-                Ask me anything about {chatbot?.name}. I have access to relevant data and can help you with your
-                questions.
-              </p>
+      {/* Messages */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${
+                msg.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`px-4 py-2 text-sm rounded-lg max-w-[85%] sm:max-w-xs break-words ${
+                  msg.role === "user"
+                    ? "bg-black text-white rounded-br-none"
+                    : "bg-card border rounded-bl-none"
+                }`}
+              >
+                {msg.content}
+              </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-xs px-4 py-3 rounded-lg ${
-                      message.role === "user"
-                        ? "bg-black text-white rounded-br-none border border-white/20"
-                        : "bg-card/50 border border-border/50 text-foreground rounded-bl-none"
-                    }`}
-                  >
-                    <p className="text-sm">{message.content}</p>
-                  </div>
-                </div>
-              ))}
-              {sending && (
-                <div className="flex gap-4 justify-start">
-                  <div className="bg-card/50 border border-border/50 text-foreground rounded-lg rounded-bl-none px-4 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+          ))}
+
+          {sending && (
+            <div className="flex justify-start">
+              <div className="px-4 py-2 rounded-lg bg-card">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="border-t border-border/50 bg-background sticky bottom-0">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
-          <form onSubmit={handleSendMessage} className="flex gap-3">
-            <Input
-              placeholder="Ask your question..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={sending}
-              className="bg-card/50 border-border/50 text-foreground placeholder-muted-foreground"
-            />
-            <Button
-              type="submit"
-              disabled={sending || !input.trim()}
-              className="bg-white hover:bg-gray-200 text-black px-6"
-            >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </form>
+          <div ref={messagesEndRef} />
         </div>
-      </div>
+      </main>
+
+      {/* Input */}
+      <footer className="sticky bottom-0 border-t bg-background">
+        <form
+          onSubmit={handleSendMessage}
+          className="max-w-2xl mx-auto px-4 py-3 flex gap-2"
+        >
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a message…"
+            disabled={sending}
+            className="flex-1"
+          />
+
+          <Button
+            type="submit"
+            disabled={sending || !input.trim()}
+            className="px-4"
+          >
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </form>
+      </footer>
     </div>
   )
 }
