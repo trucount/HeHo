@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth/provider'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 interface Share {
   share_token: string
@@ -13,37 +13,44 @@ export const useChatbotShare = (chatbotId: string) => {
   const [share, setShare] = useState<Share | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchShare = async () => {
-      if (!user) return
-      try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('chatbot_shares')
-          .select('share_token, expires_at')
-          .eq('chatbot_id', chatbotId)
-          .eq('user_id', user.id)
-          .single()
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            // No share link found, which is a valid state
-            setShare(null)
-          } else {
-            throw error
-          }
-        } else {
-          setShare(data)
-        }
-      } catch (error) {
-        console.error('Error fetching share link:', error)
-      } finally {
-        setLoading(false)
-      }
+  const fetchShare = useCallback(async () => {
+    if (!user || !chatbotId) {
+      setLoading(false)
+      return
     }
 
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('chatbot_shares')
+        .select('share_token, expires_at')
+        .eq('chatbot_id', chatbotId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // This is expected if no share link exists yet
+          setShare(null)
+        } else {
+          // For other errors, log them
+          console.error('Error fetching share link:', error)
+          setShare(null)
+        }
+      } else {
+        setShare(data)
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching share link:', error)
+      setShare(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [chatbotId, user, supabase])
+
+  useEffect(() => {
     fetchShare()
-  }, [chatbotId, user])
+  }, [fetchShare])
 
   const generateShareToken = () => {
     return (
@@ -53,7 +60,10 @@ export const useChatbotShare = (chatbotId: string) => {
   }
 
   const createShareLink = async (expires_at: Date | null) => {
-    if (!user) return null
+    if (!user) {
+      console.error("User not authenticated to create share link.")
+      return null
+    }
 
     try {
       const share_token = generateShareToken()
@@ -81,13 +91,17 @@ export const useChatbotShare = (chatbotId: string) => {
   }
 
   const deleteShareLink = async () => {
-    if (!user || !share?.share_token) return
+    if (!user || !share?.share_token) {
+       console.error("Cannot delete link: user or share token is missing.")
+      return
+    }
 
     try {
       const { error } = await supabase
         .from('chatbot_shares')
         .delete()
         .eq('share_token', share.share_token)
+        .eq('user_id', user.id) // Ensure only owner can delete
 
       if (error) throw error
       setShare(null)
@@ -96,5 +110,5 @@ export const useChatbotShare = (chatbotId: string) => {
     }
   }
 
-  return { share, loading, createShareLink, deleteShareLink }
+  return { share, loading, fetchShare, createShareLink, deleteShareLink }
 }

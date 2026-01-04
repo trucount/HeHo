@@ -120,6 +120,7 @@ export default function SharedChatbotPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          chatbotId: chatbot.id,
           shareToken,
           message: input,
           history: newMessages.slice(0, -1),
