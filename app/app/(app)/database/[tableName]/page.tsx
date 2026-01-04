@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,11 +14,6 @@ import {
     TableHeader, 
     TableRow 
 } from '@/components/ui/table'
-import {
-    ResizablePanelGroup,
-    ResizablePanel,
-    ResizableHandle,
-} from '@/components/ui/resizable'
 
 interface TableData {
     [key: string]: any
@@ -95,17 +90,12 @@ export default function ViewTablePage() {
                         <p className='text-muted-foreground'>No data found in this table.</p>
                     </div>
                 ) : (
-                    <ResizablePanelGroup direction='horizontal' className='w-full overflow-x-auto'>
+                    <div className='w-full overflow-x-auto'>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    {columns.map((col, index) => (
-                                        <React.Fragment key={col}>
-                                            <ResizablePanel asChild defaultSize={150}>
-                                                <TableHead>{col}</TableHead>
-                                            </ResizablePanel>
-                                            {index < columns.length - 1 && <ResizableHandle withHandle />}
-                                        </React.Fragment>
+                                    {columns.map((col) => (
+                                        <TableHead key={col}>{col}</TableHead>
                                     ))}
                                 </TableRow>
                             </TableHeader>
@@ -117,7 +107,7 @@ export default function ViewTablePage() {
                             ))}
                             </TableBody>
                         </Table>
-                    </ResizablePanelGroup>
+                    </div>
                 )}
             </CardContent>
         </Card>
