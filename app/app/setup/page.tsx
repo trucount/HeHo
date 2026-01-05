@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter } from "next/navigation"
 import { ArrowRight, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function SetupWizardPage() {
   const [step, setStep] = useState(1)
@@ -17,6 +18,9 @@ export default function SetupWizardPage() {
   const [openRouterKey, setOpenRouterKey] = useState("")
   const [supabaseUrl, setSupabaseUrl] = useState("")
   const [supabaseKey, setSupabaseKey] = useState("")
+  const [supabaseProjects, setSupabaseProjects] = useState<any[]>([])
+  const [selectedProject, setSelectedProject] = useState<string | null>(null)
+  const [projectsFetched, setProjectsFetched] = useState(false)
   const [permissions, setPermissions] = useState({
     can_read: true,
     can_insert: true,
@@ -43,7 +47,42 @@ export default function SetupWizardPage() {
     }
 
     checkUser()
-  }, [])
+
+    const searchParams = new URLSearchParams(window.location.search)
+    const code = searchParams.get("code")
+
+    if (code && !projectsFetched) {
+      setProjectsFetched(true)
+      setTesting(true)
+      fetch(`/api/supabase-projects?code=${code}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            setError(data.error)
+          } else {
+            setSupabaseProjects(data.projects)
+          }
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => {
+          setTesting(false)
+          // Clean up the URL
+          window.history.replaceState({}, document.title, window.location.pathname)
+        })
+    }
+  }, [projectsFetched, router, supabase.auth])
+
+  const handleSupabaseConnect = () => {
+    const redirectUri = window.location.origin + "/app/setup"
+    const clientId = "68bd9c63-2a70-4807-a8ef-030d705262bc"
+    const supabaseOAuthUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&scope=read:projects&redirect_uri=${redirectUri}`
+    window.location.href = supabaseOAuthUrl
+  }
+  
+  const handleProjectSelect = (projectRef: string) => {
+    setSelectedProject(projectRef)
+    setSupabaseUrl(`https://${projectRef}.supabase.co`)
+  }
 
   const testOpenRouterKey = async () => {
     if (!openRouterKey) {
@@ -221,101 +260,119 @@ export default function SetupWizardPage() {
           </Card>
         )}
 
-{/* Step 2: Supabase Connection (Optional) */}
-{step === 2 && (
-  <Card className="border-border/50 bg-card/50">
-    <CardHeader>
-      <CardTitle className="text-2xl text-foreground">Connect Supabase (Optional)</CardTitle>
-      <CardDescription className="text-muted-foreground">
-        Link your Supabase database to store chatbot data, or skip this step
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-6">
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription className="text-foreground">
-          Find your credentials at{" "}
-          <a
-            href="https://app.supabase.com"
-            target="_blank"
-            className="text-white hover:underline font-semibold"
-            rel="noreferrer"
-          >
-            app.supabase.com
-          </a>{" "}
-          → Settings → API keys
-        </AlertDescription>
-      </Alert>
+        {/* Step 2: Supabase Connection */}
+        {step === 2 && (
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader>
+              <CardTitle className="text-2xl text-foreground">Connect Supabase</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Link your Supabase database to store chatbot data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Button onClick={handleSupabaseConnect} className="w-full bg-green-500 hover:bg-green-600 text-white">
+                Connect with Supabase
+              </Button>
 
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Supabase Project URL</label>
-        <Input
-          type="text"
-          placeholder="https://xxxxx.supabase.co"
-          value={supabaseUrl}
-          onChange={(e) => setSupabaseUrl(e.target.value)}
-          className="bg-background/50 border-border/50 text-foreground"
-        />
-      </div>
+              {supabaseProjects.length > 0 && (
+                <div className="space-y-4">
+                   <label className="block text-sm font-medium text-foreground">Select your project</label>
+                   <Select onValueChange={handleProjectSelect} defaultValue={selectedProject || undefined}>
+                     <SelectTrigger className="w-full bg-background/50 border-border/50">
+                       <SelectValue placeholder="Select a Supabase project" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {supabaseProjects.map((proj) => (
+                         <SelectItem key={proj.id} value={proj.ref}>
+                           {proj.name}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                </div>
+              )}
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    Or manually
+                  </span>
+                </div>
+              </div>
 
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          NEXT_PUBLIC_SUPABASE_ANON_KEY
-        </label>
-        <Input
-          type="password"
-          placeholder="ey_..."
-          value={supabaseKey}
-          onChange={(e) => setSupabaseKey(e.target.value)}
-          className="bg-background/50 border-border/50 text-foreground"
-        />
-      </div>
 
-      {error && (
-        <Alert className="border-destructive/50 bg-destructive/5">
-          <AlertCircle className="h-4 w-4 text-destructive" />
-          <AlertDescription className="text-destructive">{error}</AlertDescription>
-        </Alert>
-      )}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Supabase Project URL</label>
+                <Input
+                  type="text"
+                  placeholder="https://xxxxx.supabase.co"
+                  value={supabaseUrl}
+                  onChange={(e) => setSupabaseUrl(e.target.value)}
+                  className="bg-background/50 border-border/50 text-foreground"
+                />
+              </div>
 
-      {connectionSuccess && (
-        <Alert className="border-white/20 bg-white/5">
-          <CheckCircle className="h-4 w-4 text-white" />
-          <AlertDescription className="text-white">Connected successfully!</AlertDescription>
-        </Alert>
-      )}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Supabase Anon (Public) Key
+                </label>
+                <Input
+                  type="password"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  value={supabaseKey}
+                  onChange={(e) => setSupabaseKey(e.target.value)}
+                  className="bg-background/50 border-border/50 text-foreground"
+                />
+              </div>
 
-      <div className="flex gap-3">
-        <Button
-          variant="outline"
-          onClick={() => setStep(1)}
-          className="flex-1 border-border/50 text-foreground"
-        >
-          Back
-        </Button>
-        <Button
-          onClick={() =>
-            supabaseUrl && supabaseKey ? testSupabaseConnection() : setStep(3)
-          }
-          disabled={testing}
-          className="flex-1 bg-white hover:bg-gray-200 text-black"
-        >
-          {testing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Testing...
-            </>
-          ) : (
-            <>
-              Continue / Skip
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </>
-          )}
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-)}
+              {error && (
+                <Alert className="border-destructive/50 bg-destructive/5">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <AlertDescription className="text-destructive">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {connectionSuccess && (
+                <Alert className="border-white/20 bg-white/5">
+                  <CheckCircle className="h-4 w-4 text-white" />
+                  <AlertDescription className="text-white">Connected successfully!</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  className="flex-1 border-border/50 text-foreground"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={testSupabaseConnection}
+                  disabled={testing || !supabaseUrl || !supabaseKey}
+                  className="flex-1 bg-white hover:bg-gray-200 text-black"
+                >
+                  {testing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      Continue
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
         {/* Step 3: Permissions */}
         {step === 3 && (
           <Card className="border-border/50 bg-card/50">
