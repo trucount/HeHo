@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { supabaseOAuthConfig } from "@/lib/supabase/config";
 
-export default function Setup() {
+// This is the actual component logic. It needs to be a separate component
+// so we can wrap it in a <Suspense> boundary in the main export.
+function Setup() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [projects, setProjects] = useState([])
@@ -140,7 +142,7 @@ export default function Setup() {
               <div className="grid gap-2">
               {projects.map((project: any) => (
                 <Button 
-                  key={project..id} 
+                  key={project.id} 
                   onClick={() => handleProjectSelect(project.ref)} 
                   variant={selectedProject === project.ref ? "default" : "outline"}
                 >
@@ -192,5 +194,15 @@ export default function Setup() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// This is the main export for the page. It wraps the Setup component
+// in a <Suspense> boundary, which is required by Next.js when using useSearchParams.
+export default function SetupPage() {
+  return (
+    <Suspense fallback={<div>Loading page...</div>}>
+      <Setup />
+    </Suspense>
   )
 }
