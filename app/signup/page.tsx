@@ -89,7 +89,7 @@ export default function SignupPage() {
           <Card className="border-border/50 bg-card/50 backdrop-blur-lg text-white">
             <CardHeader>
               <CardTitle className="text-2xl">Terms & Conditions</CardTitle>
-              <CardDescription className="text-gray-300">Please read and accept our terms before signing up <Link href="/terms" className="text-white hover:underline font-semibold">(HERE LINK TO /TERMS PAGE)</Link></CardDescription>
+              <CardDescription className="text-gray-300">Please read and accept our terms before signing up <Link href="/terms" className="text-white hover:underline font-semibold">(Terms and Conditions)</Link></CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="prose prose-invert text-sm space-y-4 max-h-96 overflow-y-auto text-gray-300">
