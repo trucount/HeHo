@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import type React from "react"
 
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -39,36 +39,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-border/50 bg-card/50">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <video autoPlay loop muted playsInline className="absolute z-0 w-full h-full object-cover" src="/setupbg.mp4" />
+        <div className="absolute z-10 w-full h-full bg-black/50"></div>
+        <div className="w-full max-w-md z-20">
+        <Card className="border-border/50 bg-card/50 backdrop-blur-lg text-white">
           <CardHeader>
             <CardTitle className="text-2xl">Sign In to HeHo</CardTitle>
-            <CardDescription>Enter your email and password to access your chatbots</CardDescription>
+            <CardDescription className="text-gray-300">Enter your email and password to access your chatbots</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Email</label>
+                <label className="block text-sm font-medium mb-2">Email</label>
                 <Input
                   type="email"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-background/50 border-border/50"
+                  className="bg-background/50 border-border/50 text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Password</label>
+                <label className="block text-sm font-medium mb-2">Password</label>
                 <Input
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="bg-background/50 border-border/50"
+                  className="bg-background/50 border-border/50 text-white"
                 />
               </div>
 
@@ -76,17 +78,17 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-black hover:bg-gray-900 text-white border border-white"
+                className="w-full bg-white text-black hover:bg-gray-200"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
                 {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
+            <div className="mt-6 text-center text-sm text-gray-300">
               Don't have an account?{" "}
-              <Link href="/signup" className="text-black hover:underline font-semibold">
+              <Link href="/signup" className="text-white hover:underline font-semibold">
                 Sign up here
               </Link>
             </div>
