@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from "react"
@@ -36,6 +35,20 @@ export default function SetupWizardPage() {
   const supabase = createClient()
 
   useEffect(() => {
+    // Restore state from localStorage
+    const savedState = localStorage.getItem('setupState');
+    if (savedState) {
+      try {
+        const { step: savedStep, openRouterKey: savedOpenRouterKey } = JSON.parse(savedState);
+        setStep(savedStep || 1);
+        setOpenRouterKey(savedOpenRouterKey || "");
+      } catch (e) {
+        // If parsing fails, ignore the saved state
+        console.error("Failed to parse setup state:", e)
+      }
+      localStorage.removeItem('setupState'); // Clean up immediately
+    }
+
     const checkUser = async () => {
       const {
         data: { user: currentUser },
@@ -63,18 +76,22 @@ export default function SetupWizardPage() {
             setError(data.error)
           } else {
             setSupabaseProjects(data.projects)
+            setStep(2) // Ensure we are on the correct step
           }
         })
         .catch((err) => setError(err.message))
         .finally(() => {
           setTesting(false)
-          // Clean up the URL
           window.history.replaceState({}, document.title, window.location.pathname)
         })
     }
   }, [projectsFetched, router, supabase.auth])
 
   const handleSupabaseConnect = () => {
+    // Save state before redirecting
+    const stateToSave = { step: 2, openRouterKey };
+    localStorage.setItem('setupState', JSON.stringify(stateToSave));
+
     const redirectUri = window.location.origin + "/app/setup"
     const clientId = supabaseOAuthConfig.clientId;
     const supabaseOAuthUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&scope=read:projects&redirect_uri=${redirectUri}`
@@ -116,7 +133,7 @@ export default function SetupWizardPage() {
 
   const testSupabaseConnection = async () => {
     if (!supabaseUrl || !supabaseKey) {
-      setError("Please enter your Supabase URL and publishable key")
+      setError("Please provide both the Supabase URL and the Anon (Public) Key.")
       return
     }
 
@@ -124,24 +141,23 @@ export default function SetupWizardPage() {
     setError(null)
 
     try {
-      const testResponse = await fetch(`${supabaseUrl}/rest/v1/users?limit=1`, {
-        method: "GET",
+      const testResponse = await fetch(`${supabaseUrl}/rest/v1/`, {
+        method: "HEAD", // Use HEAD for a lightweight request
         headers: {
-          Authorization: `Bearer ${supabaseKey}`,
           apikey: supabaseKey,
         },
       })
 
       if (testResponse.status === 401 || testResponse.status === 403) {
-        throw new Error("Invalid Supabase credentials. Check your URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY")
+        throw new Error("Invalid Supabase credentials. Check your URL and Anon Key.")
       }
 
-      if (!testResponse.ok && testResponse.status !== 404) {
+      if (!testResponse.ok) {
         throw new Error(`Supabase connection failed: ${testResponse.statusText}`)
       }
 
       setConnectionSuccess(true)
-      setStep(3)
+      setTimeout(() => setStep(3), 1000) // Go to next step after a short delay
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect to Supabase")
     } finally {
@@ -151,7 +167,7 @@ export default function SetupWizardPage() {
 
   const saveSetup = async () => {
     if (!user) return
-
+    localStorage.removeItem('setupState'); // Clean up any lingering state
     setTesting(true)
     setError(null)
 
@@ -182,8 +198,13 @@ export default function SetupWizardPage() {
     }
   }
 
-  const handleSkipSupabase = () => {
-    setStep(3) // Skip to the permissions step
+  const handleSupabaseStepContinue = () => {
+    const hasInteracted = supabaseUrl || supabaseKey || selectedProject;
+    if (hasInteracted) {
+      testSupabaseConnection();
+    } else {
+      setStep(3); // Skip to the permissions step
+    }
   }
 
   if (loading) {
@@ -193,6 +214,8 @@ export default function SetupWizardPage() {
       </div>
     )
   }
+
+  const hasInteractedWithSupabase = supabaseUrl || supabaseKey || selectedProject;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
@@ -253,9 +276,9 @@ export default function SetupWizardPage() {
               </div>
 
               {error && (
-                <Alert className="border-destructive/50 bg-destructive/5">
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                  <AlertDescription className="text-destructive">{error}</AlertDescription>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
@@ -349,40 +372,40 @@ export default function SetupWizardPage() {
               </div>
 
               {error && (
-                <Alert className="border-destructive/50 bg-destructive/5">
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                  <AlertDescription className="text-destructive">{error}</AlertDescription>
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               {connectionSuccess && (
-                <Alert className="border-white/20 bg-white/5">
-                  <CheckCircle className="h-4 w-4 text-white" />
-                  <AlertDescription className="text-white">Connected successfully!</AlertDescription>
+                <Alert className="border-green-500/50 bg-green-500/10 text-green-300">
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>Connected successfully!</AlertDescription>
                 </Alert>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-4">
                 <Button
                   variant="outline"
                   onClick={() => setStep(1)}
-                  className="flex-1 border-border/50 text-foreground"
+                  className="flex-1 border-border/50 text-foreground bg-transparent hover:bg-white/10"
                 >
                   Back
                 </Button>
                 <Button
-                  onClick={supabaseUrl && supabaseKey ? testSupabaseConnection : handleSkipSupabase}
+                  onClick={handleSupabaseStepContinue}
                   disabled={testing}
                   className="flex-1 bg-white hover:bg-gray-200 text-black"
                 >
-                  {testing && (supabaseUrl && supabaseKey) ? (
+                  {testing && hasInteractedWithSupabase ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Testing...
                     </>
                   ) : (
                     <>
-                      {supabaseUrl && supabaseKey ? 'Continue' : 'Skip for now'}
+                      {hasInteractedWithSupabase ? 'Continue' : 'Skip for now'}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -399,19 +422,13 @@ export default function SetupWizardPage() {
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">Database Permissions</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Control what your AI chatbot can do with your data
+                Control what your AI chatbot can do with your data. This step is skipped if you didn't connect a database.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-foreground">
-                  You can change these permissions anytime in your account settings
-                </AlertDescription>
-              </Alert>
-
+              
               <div className="space-y-4">
-                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg">
+                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg bg-white/5">
                   <Checkbox
                     id="can_read"
                     checked={permissions.can_read}
@@ -421,12 +438,12 @@ export default function SetupWizardPage() {
                     <label htmlFor="can_read" className="font-medium text-foreground cursor-pointer">
                       Read from tables
                     </label>
-                    <p className="text-sm text-muted-foreground">AI can query your database</p>
+                    <p className="text-sm text-muted-foreground">AI can query your database to answer questions.</p>
                   </div>
                   {permissions.can_read && <CheckCircle className="h-5 w-5 text-white" />}
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg">
+                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg bg-white/5">
                   <Checkbox
                     id="can_insert"
                     checked={permissions.can_insert}
@@ -436,19 +453,19 @@ export default function SetupWizardPage() {
                     <label htmlFor="can_insert" className="font-medium text-foreground cursor-pointer">
                       Insert new rows
                     </label>
-                    <p className="text-sm text-muted-foreground">AI can add data to tables</p>
+                    <p className="text-sm text-muted-foreground">AI can add data to tables, like saving chat history.</p>
                   </div>
                   {permissions.can_insert && <CheckCircle className="h-5 w-5 text-white" />}
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg opacity-50">
+                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg opacity-50 bg-white/5">
                   <Checkbox disabled id="can_create" checked={false} />
                   <div className="flex-1">
-                    <label htmlFor="can_create" className="font-medium text-foreground cursor-pointer">
+                    <label htmlFor="can_create" className="font-medium text-foreground cursor-not-allowed">
                       Create new tables
                     </label>
                     <p className="text-sm text-muted-foreground">
-                      AI can create tables (disabled - contact us to enable)
+                      (Coming Soon) AI can create tables for new data types.
                     </p>
                   </div>
                 </div>
@@ -456,10 +473,10 @@ export default function SetupWizardPage() {
                 <div className="flex items-center space-x-3 p-4 border border-destructive/20 rounded-lg bg-destructive/5 opacity-50">
                   <Checkbox disabled id="can_delete" checked={false} />
                   <div className="flex-1">
-                    <label htmlFor="can_delete" className="font-medium text-foreground cursor-pointer">
+                    <label htmlFor="can_delete" className="font-medium text-foreground cursor-not-allowed">
                       Delete data
                     </label>
-                    <p className="text-sm text-muted-foreground">Permanently disabled for safety</p>
+                    <p className="text-sm text-muted-foreground">Permanently disabled for safety.</p>
                   </div>
                 </div>
               </div>
@@ -467,7 +484,7 @@ export default function SetupWizardPage() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-foreground">
-                  At minimum, your AI needs Read and Insert permissions to function
+                  We recommend enabling Read and Insert for the best experience.
                 </AlertDescription>
               </Alert>
 
@@ -475,7 +492,7 @@ export default function SetupWizardPage() {
                 <Button
                   variant="outline"
                   onClick={() => setStep(2)}
-                  className="flex-1 border-border/50 text-foreground"
+                  className="flex-1 border-border/50 text-foreground bg-transparent hover:bg-white/10"
                 >
                   Back
                 </Button>
@@ -498,7 +515,7 @@ export default function SetupWizardPage() {
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">You're All Set!</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Your HeHo instance is ready to create chatbots
+                Your HeHo instance is ready to create chatbots.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -507,31 +524,28 @@ export default function SetupWizardPage() {
                   <CheckCircle className="h-5 w-5 text-white flex-shrink-0" />
                   <div>
                     <p className="font-semibold text-foreground">OpenRouter Connected</p>
-                    <p className="text-sm text-muted-foreground">Ready to power your chatbots</p>
+                    <p className="text-sm text-muted-foreground">Ready to power your chatbots.</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/20">
-                  <CheckCircle className="h-5 w-5 text-white flex-shrink-0" />
+                <div className={`flex items-center gap-3 p-4 rounded-lg border ${supabaseUrl && supabaseKey ? "bg-white/5 border-white/20" : "bg-yellow-500/10 border-yellow-500/50"}`}>
+                  {supabaseUrl && supabaseKey ? (
+                     <CheckCircle className="h-5 w-5 text-white flex-shrink-0" />
+                  ) : (
+                     <AlertCircle className="h-5 w-5 text-yellow-300 flex-shrink-0" />
+                  )}
                   <div>
-                    <p className="font-semibold text-foreground">Supabase Configured</p>
-                    <p className="text-sm text-muted-foreground">Database connection established</p>
+                    <p className="font-semibold text-foreground">Supabase {supabaseUrl && supabaseKey ? "Configured" : "Skipped"}</p>
+                    <p className="text-sm text-muted-foreground">{supabaseUrl && supabaseKey ? "Database connection is active." : "You can connect it later in settings."}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/20">
-                  <CheckCircle className="h-5 w-5 text-white flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">Permissions Set</p>
-                    <p className="text-sm text-muted-foreground">Your data is protected</p>
-                  </div>
-                </div>
               </div>
 
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-foreground">
-                  You can update these settings anytime in your account settings
+                  You can update these settings anytime in your account dashboard.
                 </AlertDescription>
               </Alert>
 
@@ -544,7 +558,7 @@ export default function SetupWizardPage() {
                 {testing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    Finishing Setup...
                   </>
                 ) : (
                   <>
