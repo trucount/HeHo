@@ -10,7 +10,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No code provided" }, { status: 400 });
   }
 
+  // --- START: Definitive Redirect URI Logging ---
+  // Log the exact Redirect URI that will be sent to Supabase.
   const redirectUri = `${new URL(req.url).origin}/app/setup`;
+  console.log(`CRITICAL DEBUG: Using Redirect URI: ${redirectUri}`);
+  // --- END: Definitive Redirect URI Logging ---
 
   try {
     const requestBody = {
@@ -34,6 +38,8 @@ export async function GET(req: NextRequest) {
     if (!tokenResponse.ok || !tokenData.access_token) {
       const errorDescription = tokenData.error_description || `The Supabase API responded with an error: ${JSON.stringify(tokenData)}`;
       console.error("Error fetching token from Supabase:", errorDescription);
+      // Also log the request details that failed
+      console.error("Failed request details:", JSON.stringify(requestBody, null, 2));
       return NextResponse.json({ error: `Failed to fetch Supabase token. ${errorDescription}` }, { status: 400 });
     }
 
