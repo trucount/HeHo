@@ -35,7 +35,6 @@ export default function SetupWizardPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Restore state from localStorage
     const savedState = localStorage.getItem('setupState');
     if (savedState) {
       try {
@@ -43,530 +42,239 @@ export default function SetupWizardPage() {
         setStep(savedStep || 1);
         setOpenRouterKey(savedOpenRouterKey || "");
       } catch (e) {
-        // If parsing fails, ignore the saved state
         console.error("Failed to parse setup state:", e)
       }
-      localStorage.removeItem('setupState'); // Clean up immediately
+      localStorage.removeItem('setupState');
     }
 
     const checkUser = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
-        router.push("/login")
-        return
+        router.push("/login");
+        return;
       }
-      setUser(currentUser)
-      setLoading(false)
-    }
+      setUser(currentUser);
+      setLoading(false);
+    };
 
-    checkUser()
+    checkUser();
 
-    const searchParams = new URLSearchParams(window.location.search)
-    const code = searchParams.get("code")
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
 
     if (code && !projectsFetched) {
-      setProjectsFetched(true)
-      setTesting(true)
+      setProjectsFetched(true);
+      setTesting(true);
       fetch(`/api/supabase-projects?code=${code}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.error) {
-            setError(data.error)
+            setError(data.error);
           } else {
-            setSupabaseProjects(data.projects)
-            setStep(2) // Ensure we are on the correct step
+            setSupabaseProjects(data.projects);
+            setStep(2);
           }
         })
         .catch((err) => setError(err.message))
         .finally(() => {
-          setTesting(false)
-          window.history.replaceState({}, document.title, window.location.pathname)
-        })
+          setTesting(false);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
     }
-  }, [projectsFetched, router, supabase.auth])
+  }, [projectsFetched, router, supabase.auth]);
 
   const handleSupabaseConnect = () => {
-    // Save state before redirecting
     const stateToSave = { step: 2, openRouterKey };
     localStorage.setItem('setupState', JSON.stringify(stateToSave));
 
-    const redirectUri = window.location.origin + "/app/setup"
+    const redirectUri = window.location.origin + "/app/setup";
     const clientId = supabaseOAuthConfig.clientId;
-    const supabaseOAuthUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&scope=read:projects&redirect_uri=${redirectUri}`
-    window.location.href = supabaseOAuthUrl
-  }
+    const scope = "read:projects read:project_api_keys";
+    const supabaseOAuthUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&scope=${scope}&redirect_uri=${redirectUri}`;
+    window.location.href = supabaseOAuthUrl;
+  };
   
   const handleProjectSelect = (projectRef: string) => {
-    setSelectedProject(projectRef)
-    setSupabaseUrl(`https://${projectRef}.supabase.co`)
-  }
+    const project = supabaseProjects.find(p => p.ref === projectRef);
+    if (project) {
+        setSelectedProject(projectRef);
+        setSupabaseUrl(`https://${projectRef}.supabase.co`);
+        if (project.anonKey) {
+            setSupabaseKey(project.anonKey);
+        } else {
+            setError("Could not automatically fetch the API key for this project. Please enter it manually.")
+            setSupabaseKey(""); // Clear any previous key
+        }
+    }
+  };
 
   const testOpenRouterKey = async () => {
     if (!openRouterKey) {
-      setError("Please enter your OpenRouter API key")
-      return
+      setError("Please enter your OpenRouter API key");
+      return;
     }
-
-    setTesting(true)
-    setError(null)
-
+    setTesting(true);
+    setError(null);
     try {
-      const response = await fetch("https://openrouter.ai/api/v1/models", {
-        headers: {
-          Authorization: `Bearer ${openRouterKey}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Invalid API key. Make sure your OpenRouter API key is correct.")
-      }
-
-      setStep(2)
+      const response = await fetch("https://openrouter.ai/api/v1/models", { headers: { Authorization: `Bearer ${openRouterKey}` } });
+      if (!response.ok) throw new Error("Invalid API key.");
+      setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to validate API key")
+      setError(err instanceof Error ? err.message : "Failed to validate API key");
     } finally {
-      setTesting(false)
+      setTesting(false);
     }
-  }
-
+  };
+  
   const testSupabaseConnection = async () => {
     if (!supabaseUrl || !supabaseKey) {
-      setError("Please provide both the Supabase URL and the Anon (Public) Key.")
-      return
+      setError("Please provide both the Supabase URL and the Anon (Public) Key.");
+      return;
     }
-
-    setTesting(true)
-    setError(null)
-
+    setTesting(true);
+    setError(null);
     try {
-      const testResponse = await fetch(`${supabaseUrl}/rest/v1/`, {
-        method: "HEAD", // Use HEAD for a lightweight request
-        headers: {
-          apikey: supabaseKey,
-        },
-      })
-
-      if (testResponse.status === 401 || testResponse.status === 403) {
-        throw new Error("Invalid Supabase credentials. Check your URL and Anon Key.")
+      const testSupabase = createClient(supabaseUrl, supabaseKey);
+      const { error: testError } = await testSupabase.from('users').select('id').limit(1);
+      if (testError && testError.message.includes('Invalid API key')) {
+        throw new Error("Invalid Supabase credentials. Check your URL and Anon Key.");
       }
-
-      if (!testResponse.ok) {
-        throw new Error(`Supabase connection failed: ${testResponse.statusText}`)
-      }
-
-      setConnectionSuccess(true)
-      setTimeout(() => setStep(3), 1000) // Go to next step after a short delay
+      setConnectionSuccess(true);
+      setTimeout(() => setStep(3), 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to connect to Supabase")
+      setError(err instanceof Error ? err.message : "Failed to connect to Supabase");
     } finally {
-      setTesting(false)
+      setTesting(false);
     }
   }
 
   const saveSetup = async () => {
-    if (!user) return
-    localStorage.removeItem('setupState'); // Clean up any lingering state
-    setTesting(true)
-    setError(null)
-
+    if (!user) return;
+    localStorage.removeItem('setupState');
+    setTesting(true);
+    setError(null);
     try {
       const updateData: any = {
-        openrouter_key_encrypted: openRouterKey,
+        openrouter_key: openRouterKey,
         setup_completed: true,
-      }
+      };
 
       if (supabaseUrl && supabaseKey) {
-        updateData.supabase_url = supabaseUrl
-        updateData.supabase_key_encrypted = supabaseKey
-        updateData.supabase_permissions = permissions
+        updateData.supabase_url = supabaseUrl;
+        updateData.supabase_key = supabaseKey; 
+        updateData.supabase_permissions = permissions;
       }
 
-      const { error } = await supabase
-        .from("users")
-        .update(updateData)
-        .eq("id", user.id)
+      const { error: updateError } = await supabase.from("users").update(updateData).eq("id", user.id);
+      if (updateError) throw updateError;
 
-      if (error) throw error
-
-      router.push("/app/dashboard")
+      router.push("/app/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save setup")
+      setError(err instanceof Error ? err.message : "Failed to save setup");
     } finally {
-      setTesting(false)
+      setTesting(false);
     }
-  }
+  };
 
   const handleSupabaseStepContinue = () => {
     const hasInteracted = supabaseUrl || supabaseKey || selectedProject;
     if (hasInteracted) {
+        if (!supabaseKey) {
+            setError("Please provide the Anon (Public) Key to continue.");
+            return;
+        }
       testSupabaseConnection();
     } else {
-      setStep(3); // Skip to the permissions step
+      setStep(3);
     }
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
-      </div>
-    )
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   const hasInteractedWithSupabase = supabaseUrl || supabaseKey || selectedProject;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
-        <video 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="absolute z-0 w-full h-full object-cover"
-            src="/setupbg.mp4"
-        />
+        <video autoPlay loop muted playsInline className="absolute z-0 w-full h-full object-cover" src="/setupbg.mp4" />
         <div className="absolute z-10 w-full h-full bg-black/50"></div>
         <div className="w-full max-w-2xl z-20">
-        {/* Progress indicator */}
-        <div className="flex gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`h-2 flex-1 rounded-full transition-all ${s <= step ? "bg-white" : "bg-border/50"}`}
-            />
-          ))}
-        </div>
+        <div className="flex gap-2 mb-8">{[1, 2, 3, 4].map(s => <div key={s} className={`h-2 flex-1 rounded-full transition-all ${s <= step ? "bg-white" : "bg-border/50"}`} />)}</div>
 
-        {/* Step 1: OpenRouter API Key */}
         {step === 1 && (
           <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl text-foreground">Connect OpenRouter</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Enter your OpenRouter API key to power your chatbot
-              </CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Connect OpenRouter</CardTitle><CardDescription>Enter your OpenRouter API key.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-foreground">
-                  Get a free API key from{" "}
-                  <a
-                    href="https://openrouter.ai"
-                    target="_blank"
-                    className="text-white hover:underline font-semibold"
-                    rel="noreferrer"
-                  >
-                    openrouter.ai
-                  </a>
-                </AlertDescription>
-              </Alert>
-
+              <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Get a free key at <a href="https://openrouter.ai" target="_blank" rel="noreferrer" className="underline font-semibold">openrouter.ai</a></AlertDescription></Alert>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">OpenRouter API Key</label>
-                <Input
-                  type="password"
-                  placeholder="sk-or-..."
-                  value={openRouterKey}
-                  onChange={(e) => setOpenRouterKey(e.target.value)}
-                  className="bg-background/50 border-border/50 text-foreground"
-                />
+                <label className="block text-sm font-medium mb-2">OpenRouter API Key</label>
+                <Input type="password" placeholder="sk-or-..." value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)} className="bg-background/50" />
               </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button
-                onClick={testOpenRouterKey}
-                disabled={!openRouterKey || testing}
-                className="w-full bg-white hover:bg-gray-200 text-black"
-              >
-                {testing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
+              {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+              <Button onClick={testOpenRouterKey} disabled={!openRouterKey || testing} className="w-full bg-white text-black hover:bg-gray-200">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Step 2: Supabase Connection */}
         {step === 2 && (
           <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl text-foreground">Connect Supabase</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                (Optional) Link your Supabase database to store chatbot data.
-              </CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Connect Supabase (Optional)</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-              <Button onClick={handleSupabaseConnect} className="w-full bg-green-500 hover:bg-green-600 text-white">
-                Connect with Supabase
-              </Button>
+                <Button onClick={handleSupabaseConnect} disabled={testing} className="w-full bg-green-500 hover:bg-green-600 text-white">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connecting...</> : "Connect with Supabase"}</Button>
 
               {supabaseProjects.length > 0 && (
                 <div className="space-y-4">
-                   <label className="block text-sm font-medium text-foreground">Select your project</label>
+                   <label className="block text-sm font-medium">Select your project</label>
                    <Select onValueChange={handleProjectSelect} defaultValue={selectedProject || undefined}>
-                     <SelectTrigger className="w-full bg-background/50 border-border/50">
-                       <SelectValue placeholder="Select a Supabase project" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       {supabaseProjects.map((proj) => (
-                         <SelectItem key={proj.id} value={proj.ref}>
-                           {proj.name}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
+                     <SelectTrigger className="w-full bg-background/50"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
+                     <SelectContent>{supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}</SelectContent>
                    </Select>
                 </div>
               )}
-              
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border/50" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Or manually
-                  </span>
-                </div>
-              </div>
 
+              <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or manually</span></div></div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Supabase Project URL</label>
-                <Input
-                  type="text"
-                  placeholder="https://xxxxx.supabase.co"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  className="bg-background/50 border-border/50 text-foreground"
-                />
-              </div>
+              <div><label className="block text-sm font-medium mb-2">Supabase Project URL</label><Input type="text" placeholder="https://xxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} className="bg-background/50" /></div>
+              <div><label className="block text-sm font-medium mb-2">Supabase Anon (Public) Key</label><Input type="password" placeholder="eyJhbGciOiJIUzI1NiIsIn..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} className="bg-background/50" /></div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Supabase Anon (Public) Key
-                </label>
-                <Input
-                  type="password"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseKey(e.target.value)}
-                  className="bg-background/50 border-border/50 text-foreground"
-                />
-              </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {connectionSuccess && (
-                <Alert className="border-green-500/50 bg-green-500/10 text-green-300">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription>Connected successfully!</AlertDescription>
-                </Alert>
-              )}
+              {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+              {connectionSuccess && <Alert className="border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>Connected successfully!</AlertDescription></Alert>}
 
               <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                  className="flex-1 border-border/50 text-foreground bg-transparent hover:bg-white/10"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={handleSupabaseStepContinue}
-                  disabled={testing}
-                  className="flex-1 bg-white hover:bg-gray-200 text-black"
-                >
-                  {testing && hasInteractedWithSupabase ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      {hasInteractedWithSupabase ? 'Continue' : 'Skip for now'}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
+                <Button onClick={handleSupabaseStepContinue} disabled={testing} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>{hasInteractedWithSupabase ? 'Continue' : 'Skip for now'}<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-
-        {/* Step 3: Permissions */}
         {step === 3 && (
-          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl text-foreground">Database Permissions</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Control what your AI chatbot can do with your data. This step is skipped if you didn't connect a database.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg bg-white/5">
-                  <Checkbox
-                    id="can_read"
-                    checked={permissions.can_read}
-                    onCheckedChange={(checked) => setPermissions({ ...permissions, can_read: checked as boolean })}
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="can_read" className="font-medium text-foreground cursor-pointer">
-                      Read from tables
-                    </label>
-                    <p className="text-sm text-muted-foreground">AI can query your database to answer questions.</p>
-                  </div>
-                  {permissions.can_read && <CheckCircle className="h-5 w-5 text-white" />}
-                </div>
-
-                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg bg-white/5">
-                  <Checkbox
-                    id="can_insert"
-                    checked={permissions.can_insert}
-                    onCheckedChange={(checked) => setPermissions({ ...permissions, can_insert: checked as boolean })}
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="can_insert" className="font-medium text-foreground cursor-pointer">
-                      Insert new rows
-                    </label>
-                    <p className="text-sm text-muted-foreground">AI can add data to tables, like saving chat history.</p>
-                  </div>
-                  {permissions.can_insert && <CheckCircle className="h-5 w-5 text-white" />}
-                </div>
-
-                <div className="flex items-center space-x-3 p-4 border border-border/50 rounded-lg opacity-50 bg-white/5">
-                  <Checkbox disabled id="can_create" checked={false} />
-                  <div className="flex-1">
-                    <label htmlFor="can_create" className="font-medium text-foreground cursor-not-allowed">
-                      Create new tables
-                    </label>
-                    <p className="text-sm text-muted-foreground">
-                      (Coming Soon) AI can create tables for new data types.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3 p-4 border border-destructive/20 rounded-lg bg-destructive/5 opacity-50">
-                  <Checkbox disabled id="can_delete" checked={false} />
-                  <div className="flex-1">
-                    <label htmlFor="can_delete" className="font-medium text-foreground cursor-not-allowed">
-                      Delete data
-                    </label>
-                    <p className="text-sm text-muted-foreground">Permanently disabled for safety.</p>
-                  </div>
-                </div>
-              </div>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-foreground">
-                  We recommend enabling Read and Insert for the best experience.
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(2)}
-                  className="flex-1 border-border/50 text-foreground bg-transparent hover:bg-white/10"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={() => setStep(4)}
-                  disabled={!permissions.can_read || !permissions.can_insert}
-                  className="flex-1 bg-white hover:bg-gray-200 text-black"
-                >
-                  Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+             <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+             <CardHeader><CardTitle>Database Permissions</CardTitle><CardDescription>Control what your AI can do. Skipped if no database is linked.</CardDescription></CardHeader>
+             <CardContent className="space-y-6">
+               <div className="space-y-4">
+                 <div className="flex items-center space-x-3 p-4 rounded-lg bg-white/5"><Checkbox id="can_read" checked={permissions.can_read} onCheckedChange={c => setPermissions({ ...permissions, can_read: !!c })} /><div className="flex-1"><label htmlFor="can_read" className="cursor-pointer">Read from tables</label><p className="text-sm text-muted-foreground">AI can query your data.</p></div></div>
+                 <div className="flex items-center space-x-3 p-4 rounded-lg bg-white/5"><Checkbox id="can_insert" checked={permissions.can_insert} onCheckedChange={c => setPermissions({ ...permissions, can_insert: !!c })} /><div className="flex-1"><label htmlFor="can_insert" className="cursor-pointer">Insert new rows</label><p className="text-sm text-muted-foreground">AI can add data.</p></div></div>
+               </div>
+               <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Read and Insert are recommended.</AlertDescription></Alert>
+               <div className="flex gap-3"><Button variant="outline" onClick={() => setStep(2)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button><Button onClick={() => setStep(4)} disabled={!permissions.can_read || !permissions.can_insert} className="flex-1 bg-white text-black hover:bg-gray-200">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button></div>
+             </CardContent>
+           </Card>
         )}
 
-        {/* Step 4: Confirmation */}
         {step === 4 && (
-          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl text-foreground">You're All Set!</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Your HeHo instance is ready to create chatbots.
-              </CardDescription>
-            </CardHeader>
+            <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+            <CardHeader><CardTitle>You're All Set!</CardTitle><CardDescription>Your instance is ready to create chatbots.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/20">
-                  <CheckCircle className="h-5 w-5 text-white flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">OpenRouter Connected</p>
-                    <p className="text-sm text-muted-foreground">Ready to power your chatbots.</p>
-                  </div>
-                </div>
-
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-white/5"><CheckCircle className="h-5 w-5 text-white" /><div><p className="font-semibold">OpenRouter Connected</p><p className="text-sm text-muted-foreground">Ready to power your chatbots.</p></div></div>
                 <div className={`flex items-center gap-3 p-4 rounded-lg border ${supabaseUrl && supabaseKey ? "bg-white/5 border-white/20" : "bg-yellow-500/10 border-yellow-500/50"}`}>
-                  {supabaseUrl && supabaseKey ? (
-                     <CheckCircle className="h-5 w-5 text-white flex-shrink-0" />
-                  ) : (
-                     <AlertCircle className="h-5 w-5 text-yellow-300 flex-shrink-0" />
-                  )}
-                  <div>
-                    <p className="font-semibold text-foreground">Supabase {supabaseUrl && supabaseKey ? "Configured" : "Skipped"}</p>
-                    <p className="text-sm text-muted-foreground">{supabaseUrl && supabaseKey ? "Database connection is active." : "You can connect it later in settings."}</p>
-                  </div>
+                  {supabaseUrl && supabaseKey ? <CheckCircle className="h-5 w-5 text-white" /> : <AlertCircle className="h-5 w-5 text-yellow-300" />}
+                  <div><p className="font-semibold">Supabase {supabaseUrl && supabaseKey ? "Configured" : "Skipped"}</p><p className="text-sm text-muted-foreground">{supabaseUrl && supabaseKey ? "Database connection is active." : "You can connect it later."}</p></div>
                 </div>
-
               </div>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-foreground">
-                  You can update these settings anytime in your account dashboard.
-                </AlertDescription>
-              </Alert>
-
-              <Button
-                onClick={saveSetup}
-                disabled={testing}
-                className="w-full bg-white hover:bg-gray-200 text-black"
-                size="lg"
-              >
-                {testing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Finishing Setup...
-                  </>
-                ) : (
-                  <>
-                    Go to Dashboard
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
+              <Button onClick={saveSetup} disabled={testing} className="w-full bg-white text-black hover:bg-gray-200" size="lg">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Finishing Up...</> : <>Go to Dashboard<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
             </CardContent>
           </Card>
         )}

@@ -53,7 +53,30 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
     }
 
-    return NextResponse.json({ projects });
+    const projectsWithKeys = await Promise.all(
+      projects.map(async (project: { id: string; name: string; ref: string }) => {
+        const keysResponse = await fetch(`https://api.supabase.com/v1/projects/${project.ref}/api-keys`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const keysData = await keysResponse.json();
+
+        if (!keysResponse.ok || !keysData.api_keys) {
+            console.error(`Failed to fetch API keys for project ${project.ref}:`, keysData);
+            return { ...project, anonKey: null, error: `Failed to fetch keys: ${keysData.message || "Unknown error"}` };
+        }
+
+        const anonKey = keysData.api_keys.find((k: { name: string }) => k.name === 'anon')?.api_key;
+
+        if (!anonKey) {
+             return { ...project, anonKey: null, error: "Anon key not found for this project." };
+        }
+
+        return { ...project, anonKey: anonKey };
+      })
+    );
+
+    return NextResponse.json({ projects: projectsWithKeys });
+
   } catch (error) {
     console.error("Internal Server Error during token exchange:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
