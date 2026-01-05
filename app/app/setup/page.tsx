@@ -22,6 +22,8 @@ export default function SetupWizardPage() {
   const [supabaseProjects, setSupabaseProjects] = useState<any[]>([])
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [projectsFetched, setProjectsFetched] = useState(false)
+   const [providerToken, setProviderToken] = useState<string | null>(null)
+  const [refreshToken, setRefreshToken] = useState<string | null>(null)
   const [permissions, setPermissions] = useState({
     can_read: true,
     can_insert: true,
@@ -72,6 +74,8 @@ export default function SetupWizardPage() {
             setError(data.error);
           } else {
             setSupabaseProjects(data.projects);
+            setProviderToken(data.provider_token)
+            setRefreshToken(data.refresh_token)
             setStep(2);
           }
         })
@@ -95,6 +99,12 @@ export default function SetupWizardPage() {
   };
   
   const handleProjectSelect = (projectRef: string) => {
+     if (projectRef === 'create_new') {
+      const supabaseLaunchUrl = `https://supabase.com/dashboard/new`;
+      window.open(supabaseLaunchUrl, '_blank');
+      setSelectedProject(null); // Reset selection
+      return;
+    }
     const project = supabaseProjects.find(p => p.ref === projectRef);
     if (project) {
         setSelectedProject(projectRef);
@@ -159,6 +169,8 @@ export default function SetupWizardPage() {
         email: user.email,
         openrouter_key_encrypted: openRouterKey,
         setup_completed: true,
+        provider_token: providerToken,
+        refresh_token: refreshToken,
       };
 
       if (supabaseUrl && supabaseKey) {
@@ -191,7 +203,7 @@ export default function SetupWizardPage() {
         }
       testSupabaseConnection();
     } else {
-      setStep(3);
+       setError("Supabase connection is mandatory. Please connect to a project or enter details manually.");
     }
   }
 
@@ -225,16 +237,19 @@ export default function SetupWizardPage() {
 
         {step === 2 && (
           <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
-            <CardHeader><CardTitle>Connect Supabase (Optional)</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Connect Supabase</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
                 <Button onClick={handleSupabaseConnect} disabled={testing} className="w-full bg-green-500 hover:bg-green-600 text-white">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connecting...</> : "Connect with Supabase"}</Button>
 
-              {supabaseProjects.length > 0 && (
+              {(supabaseProjects.length > 0 || projectsFetched) && (
                 <div className="space-y-4">
                    <label className="block text-sm font-medium">Select your project</label>
                    <Select onValueChange={handleProjectSelect} defaultValue={selectedProject || undefined}>
                      <SelectTrigger className="w-full bg-background/50"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
-                     <SelectContent>{supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}</SelectContent>
+                     <SelectContent>
+                        {supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}
+                        <SelectItem value="create_new">+ Create a new project</SelectItem>
+                      </SelectContent>
                    </Select>
                 </div>
               )}
@@ -249,7 +264,7 @@ export default function SetupWizardPage() {
 
               <div className="flex gap-3 pt-4">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
-                <Button onClick={handleSupabaseStepContinue} disabled={testing} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>{hasInteractedWithSupabase ? 'Continue' : 'Skip for now'}<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
+                <Button onClick={handleSupabaseStepContinue} disabled={testing} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
               </div>
             </CardContent>
           </Card>

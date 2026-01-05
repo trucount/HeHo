@@ -38,6 +38,8 @@ export async function GET(req: NextRequest) {
     }
 
     const accessToken = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token;
+    const providerToken = tokenData.access_token; // Using access token as provider token
 
     const projectsResponse = await fetch("https://api.supabase.com/v1/projects", {
       headers: {
@@ -81,7 +83,11 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    return NextResponse.json({ projects: projectsWithKeys });
+    return NextResponse.json({
+      projects: projectsWithKeys,
+      provider_token: providerToken,
+      refresh_token: refreshToken,
+    });
 
   } catch (error) {
     console.error("Internal Server Error during token exchange:", error);
