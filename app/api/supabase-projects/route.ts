@@ -2,6 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseOAuthConfig } from "@/lib/supabase/config";
 
+async function getOrganizationId(accessToken: string): Promise<string | null> {
+  const orgsResponse = await fetch("https://api.supabase.com/v1/organizations", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!orgsResponse.ok) {
+    console.error("Failed to fetch organizations");
+    return null;
+  }
+  const orgs = await orgsResponse.json();
+  return orgs.length > 0 ? orgs[0].id : null;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
@@ -55,7 +67,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
     }
 
-    const organizationId = projects.length > 0 ? projects[0].organization_id : null;
+    let organizationId = projects.length > 0 ? projects[0].organization_id : null;
+    if (!organizationId) {
+      organizationId = await getOrganizationId(accessToken);
+    }
 
     const projectsWithKeys = await Promise.all(
       projects.map(async (project: any) => {

@@ -95,7 +95,7 @@ export default function SetupWizardPage() {
 
     const redirectUri = window.location.origin + "/app/setup";
     const clientId = supabaseOAuthConfig.clientId;
-    const scope = "read:projects read:project_api_keys";
+    const scope = "read:projects read:project_api_keys organizations:read";
     const supabaseOAuthUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&scope=${scope}&redirect_uri=${redirectUri}`;
     window.location.href = supabaseOAuthUrl;
   };
