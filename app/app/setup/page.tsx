@@ -351,7 +351,7 @@ export default function SetupWizardPage() {
                 <Alert className="border-destructive/50 bg-destructive/5">
                   <AlertCircle className="h-4 w-4 text-destructive" />
                   <AlertDescription className="text-destructive">{error}</AlertDescription>
-                </Aler t>
+                </Alert>
               )}
 
               {connectionSuccess && (
@@ -474,7 +474,7 @@ export default function SetupWizardPage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-foreground">
                   At minimum, your AI needs Read and Insert permissions to function
-                </Aler t>
+                </Alert>
               </Alert>
 
               <div className="flex gap-3">
