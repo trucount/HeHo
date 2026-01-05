@@ -260,11 +260,11 @@ export default function SetupWizardPage() {
 
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+          NEXT_PUBLIC_SUPABASE_ANON_KEY
         </label>
         <Input
           type="password"
-          placeholder="sb_publishable_..."
+          placeholder="ey_..."
           value={supabaseKey}
           onChange={(e) => setSupabaseKey(e.target.value)}
           className="bg-background/50 border-border/50 text-foreground"
