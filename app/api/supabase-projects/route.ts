@@ -60,18 +60,24 @@ export async function GET(req: NextRequest) {
         });
         const keysData = await keysResponse.json();
 
-        if (!keysResponse.ok || !keysData.api_keys) {
+        if (!keysResponse.ok) {
             console.error(`Failed to fetch API keys for project ${project.ref}:`, keysData);
             return { ...project, anonKey: null, error: `Failed to fetch keys: ${keysData.message || "Unknown error"}` };
         }
 
-        const anonKey = keysData.api_keys.find((k: { name: string }) => k.name === 'anon')?.api_key;
+        if (!Array.isArray(keysData)) {
+            console.error(`API keys for project ${project.ref} is not an array:`, keysData);
+            return { ...project, anonKey: null, error: "Unexpected response from Supabase API for keys." };
+        }
 
-        if (!anonKey) {
+        const anonKeyObject = keysData.find((k: any) => k.name === 'anon');
+
+        if (!anonKeyObject || typeof anonKeyObject.api_key !== 'string') {
+             console.error(`Anon key not found or invalid for project ${project.ref}`, anonKeyObject);
              return { ...project, anonKey: null, error: "Anon key not found for this project." };
         }
 
-        return { ...project, anonKey: anonKey };
+        return { ...project, anonKey: anonKeyObject.api_key };
       })
     );
 
