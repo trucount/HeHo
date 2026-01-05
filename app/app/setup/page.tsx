@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { ArrowRight, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { supabaseOAuthConfig } from "@/lib/supabase/config"
 
 export default function SetupWizardPage() {
   const [step, setStep] = useState(1)
@@ -74,7 +75,7 @@ export default function SetupWizardPage() {
 
   const handleSupabaseConnect = () => {
     const redirectUri = window.location.origin + "/app/setup"
-    const clientId = "a2b75a7c-7bb9-4e93-8803-ee4ebe857c51"
+    const clientId = supabaseOAuthConfig.clientId;
     const supabaseOAuthUrl = `https://api.supabase.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&scope=read:projects&redirect_uri=${redirectUri}`
     window.location.href = supabaseOAuthUrl
   }
@@ -154,15 +155,20 @@ export default function SetupWizardPage() {
     setError(null)
 
     try {
+      const updateData: any = {
+        openrouter_key_encrypted: openRouterKey,
+        setup_completed: true,
+      }
+
+      if (supabaseUrl && supabaseKey) {
+        updateData.supabase_url = supabaseUrl
+        updateData.supabase_key_encrypted = supabaseKey
+        updateData.supabase_permissions = permissions
+      }
+
       const { error } = await supabase
         .from("users")
-        .update({
-          openrouter_key_encrypted: openRouterKey,
-          supabase_url: supabaseUrl,
-          supabase_key_encrypted: supabaseKey,
-          supabase_permissions: permissions,
-          setup_completed: true,
-        })
+        .update(updateData)
         .eq("id", user.id)
 
       if (error) throw error
@@ -175,6 +181,10 @@ export default function SetupWizardPage() {
     }
   }
 
+  const handleSkipSupabase = () => {
+    setStep(3) // Skip to the permissions step
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -184,8 +194,17 @@ export default function SetupWizardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <video 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="absolute z-0 w-full h-full object-cover"
+            src="/setupbg.mp4"
+        />
+        <div className="absolute z-10 w-full h-full bg-black/50"></div>
+        <div className="w-full max-w-2xl z-20">
         {/* Progress indicator */}
         <div className="flex gap-2 mb-8">
           {[1, 2, 3, 4].map((s) => (
@@ -198,7 +217,7 @@ export default function SetupWizardPage() {
 
         {/* Step 1: OpenRouter API Key */}
         {step === 1 && (
-          <Card className="border-border/50 bg-card/50">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">Connect OpenRouter</CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -262,11 +281,11 @@ export default function SetupWizardPage() {
 
         {/* Step 2: Supabase Connection */}
         {step === 2 && (
-          <Card className="border-border/50 bg-card/50">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">Connect Supabase</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Link your Supabase database to store chatbot data.
+                (Optional) Link your Supabase database to store chatbot data.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -332,7 +351,7 @@ export default function SetupWizardPage() {
                 <Alert className="border-destructive/50 bg-destructive/5">
                   <AlertCircle className="h-4 w-4 text-destructive" />
                   <AlertDescription className="text-destructive">{error}</AlertDescription>
-                </Alert>
+                </Aler t>
               )}
 
               {connectionSuccess && (
@@ -349,6 +368,13 @@ export default function SetupWizardPage() {
                   className="flex-1 border-border/50 text-foreground"
                 >
                   Back
+                </Button>
+                 <Button
+                  variant="secondary"
+                  onClick={handleSkipSupabase}
+                  className="flex-1"
+                >
+                  Skip for now
                 </Button>
                 <Button
                   onClick={testSupabaseConnection}
@@ -375,7 +401,7 @@ export default function SetupWizardPage() {
 
         {/* Step 3: Permissions */}
         {step === 3 && (
-          <Card className="border-border/50 bg-card/50">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">Database Permissions</CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -448,7 +474,7 @@ export default function SetupWizardPage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-foreground">
                   At minimum, your AI needs Read and Insert permissions to function
-                </AlertDescription>
+                </Aler t>
               </Alert>
 
               <div className="flex gap-3">
@@ -474,7 +500,7 @@ export default function SetupWizardPage() {
 
         {/* Step 4: Confirmation */}
         {step === 4 && (
-          <Card className="border-border/50 bg-card/50">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">You're All Set!</CardTitle>
               <CardDescription className="text-muted-foreground">
