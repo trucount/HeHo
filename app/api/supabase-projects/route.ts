@@ -18,53 +18,63 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
 
-  if (!code) {
-    return NextResponse.json({ error: "No code provided" }, { status: 400 });
-  }
-
-  const redirectUri = `${new URL(req.url).origin}/app/setup`;
+  let accessToken: string | null = null;
+  let refreshToken: string | null = null;
+  let providerTokenToReturn: string | null = null;
 
   try {
-    const requestBody = {
-      grant_type: "authorization_code",
-      client_id: supabaseOAuthConfig.clientId,
-      client_secret: supabaseOAuthConfig.clientSecret,
-      code: code,
-      redirect_uri: redirectUri,
-    };
+    // Case 1: Initial connection with an authorization code
+    if (code) {
+      const redirectUri = `${new URL(req.url).origin}/app/setup`;
+      const requestBody = {
+        grant_type: "authorization_code",
+        client_id: supabaseOAuthConfig.clientId,
+        client_secret: supabaseOAuthConfig.clientSecret,
+        code: code,
+        redirect_uri: redirectUri,
+      };
 
-    const tokenResponse = await fetch("https://api.supabase.com/v1/oauth/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams(requestBody).toString(),
-    });
+      const tokenResponse = await fetch("https://api.supabase.com/v1/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(requestBody).toString(),
+      });
 
-    const tokenData = await tokenResponse.json();
+      const tokenData = await tokenResponse.json();
 
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      const errorDescription = tokenData.error_description || `The Supabase API responded with an error: ${JSON.stringify(tokenData)}`;
-      console.error("Error fetching token from Supabase:", errorDescription);
-      return NextResponse.json({ error: `Failed to fetch Supabase token. ${errorDescription}` }, { status: 400 });
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        const errorDescription = tokenData.error_description || `Supabase API error: ${JSON.stringify(tokenData)}`;
+        console.error("Error fetching token:", errorDescription);
+        return NextResponse.json({ error: `Failed to fetch Supabase token. ${errorDescription}` }, { status: 400 });
+      }
+
+      accessToken = tokenData.access_token;
+      refreshToken = tokenData.refresh_token;
+      providerTokenToReturn = tokenData.access_token;
+    } else {
+      // Case 2: Refreshing project list with an existing provider token
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        accessToken = authHeader.substring(7);
+      } else {
+        return NextResponse.json({ error: "No code or authorization token provided" }, { status: 400 });
+      }
     }
 
-    const accessToken = tokenData.access_token;
-    const refreshToken = tokenData.refresh_token;
-    const providerToken = tokenData.access_token; // Using access token as provider token
+    if (!accessToken) {
+      return NextResponse.json({ error: "Authentication failed" }, { status: 401 });
+    }
 
+    // Fetch projects, keys, and organization ID using the access token
     const projectsResponse = await fetch("https://api.supabase.com/v1/projects", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
-
     const projects = await projectsResponse.json();
-    
+
     if (!projectsResponse.ok) {
-        console.error("Error fetching projects:", projects);
-        const errorMessage = projects?.message || projects?.error_description || projects?.error || JSON.stringify(projects);
-        return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
+      const errorMessage = projects?.message || JSON.stringify(projects);
+      console.error("Error fetching projects:", errorMessage);
+      return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
     }
 
     let organizationId = projects.length > 0 ? projects[0].organization_id : null;
@@ -73,42 +83,25 @@ export async function GET(req: NextRequest) {
     }
 
     const projectsWithKeys = await Promise.all(
-      projects.map(async (project: any) => {
+      (projects || []).map(async (project: any) => {
         const keysResponse = await fetch(`https://api.supabase.com/v1/projects/${project.ref}/api-keys`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const keysData = await keysResponse.json();
-
-        if (!keysResponse.ok) {
-            console.error(`Failed to fetch API keys for project ${project.ref}:`, keysData);
-            return { ...project, anonKey: null, error: `Failed to fetch keys: ${keysData.message || "Unknown error"}` };
-        }
-
-        if (!Array.isArray(keysData)) {
-            console.error(`API keys for project ${project.ref} is not an array:`, keysData);
-            return { ...project, anonKey: null, error: "Unexpected response from Supabase API for keys." };
-        }
-
-        const anonKeyObject = keysData.find((k: any) => k.name === 'anon');
-
-        if (!anonKeyObject || typeof anonKeyObject.api_key !== 'string') {
-             console.error(`Anon key not found or invalid for project ${project.ref}`, anonKeyObject);
-             return { ...project, anonKey: null, error: "Anon key not found for this project." };
-        }
-
-        return { ...project, anonKey: anonKeyObject.api_key };
+        const anonKey = (keysData || []).find((k: any) => k.name === 'anon')?.api_key;
+        return { ...project, anonKey: anonKey || null };
       })
     );
 
     return NextResponse.json({
       projects: projectsWithKeys,
-      provider_token: providerToken,
+      provider_token: providerTokenToReturn,
       refresh_token: refreshToken,
       organization_id: organizationId,
     });
 
   } catch (error) {
-    console.error("Internal Server Error during token exchange:", error);
+    console.error("Internal Server Error in GET /api/supabase-projects:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

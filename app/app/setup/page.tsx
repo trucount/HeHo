@@ -11,6 +11,22 @@ import { ArrowRight, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { supabaseOAuthConfig } from "@/lib/supabase/config"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+
+const SUPABASE_REGIONS = [
+  { value: "ap-northeast-1", label: "Asia Pacific (Tokyo)" },
+  { value: "ap-northeast-2", label: "Asia Pacific (Seoul)" },
+  { value: "ap-south-1", label: "Asia Pacific (Mumbai)" },
+  { value: "ap-southeast-1", label: "Asia Pacific (Singapore)" },
+  { value: "ap-southeast-2", label: "Asia Pacific (Sydney)" },
+  { value: "ca-central-1", label: "Canada (Central)" },
+  { value: "eu-central-1", label: "EU (Frankfurt)" },
+  { value: "eu-west-1", label: "EU (Ireland)" },
+  { value: "eu-west-2", label: "EU (London)" },
+  { value: "sa-east-1", label: "South America (São Paulo)" },
+  { value: "us-east-1", label: "US East (N. Virginia)" },
+  { value: "us-west-1", label: "US West (N. California)" },
+];
 
 export default function SetupWizardPage() {
   const [step, setStep] = useState(1)
@@ -25,15 +41,17 @@ export default function SetupWizardPage() {
   const [providerToken, setProviderToken] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState<string | null>(null)
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [permissions, setPermissions] = useState({
-    can_read: true,
-    can_insert: true,
-    can_create: false,
-    can_delete: false,
-  })
+  const [permissions, setPermissions] = useState({ can_read: true, can_insert: true })
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
   const [connectionSuccess, setConnectionSuccess] = useState(false)
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [newProjectName, setNewProjectName] = useState("")
+  const [newDbPassword, setNewDbPassword] = useState("")
+  const [newProjectRegion, setNewProjectRegion] = useState("us-east-1")
+  const [creatingProject, setCreatingProject] = useState(false)
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -66,7 +84,7 @@ export default function SetupWizardPage() {
     const code = searchParams.get("code");
 
     if (code && !projectsFetched) {
-      setProjectsFetched(true);
+      setProjectsFetched(true); // Prevent re-fetching
       setTesting(true);
       fetch(`/api/supabase-projects?code=${code}`)
         .then((res) => res.json())
@@ -74,7 +92,7 @@ export default function SetupWizardPage() {
           if (data.error) {
             setError(data.error);
           } else {
-            setSupabaseProjects(data.projects);
+            setSupabaseProjects(data.projects || []);
             setProviderToken(data.provider_token)
             setRefreshToken(data.refresh_token)
             setOrganizationId(data.organization_id)
@@ -89,6 +107,24 @@ export default function SetupWizardPage() {
     }
   }, [projectsFetched, router, supabase.auth]);
 
+  const fetchProjects = async (token: string) => {
+    setTesting(true);
+    try {
+      const res = await fetch('/api/supabase-projects', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setSupabaseProjects(data.projects || []);
+        if (data.organization_id) setOrganizationId(data.organization_id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch projects');
+    } finally {
+      setTesting(false);
+    }
+  }
+
   const handleSupabaseConnect = () => {
     const stateToSave = { step: 2, openRouterKey };
     localStorage.setItem('setupState', JSON.stringify(stateToSave));
@@ -101,26 +137,79 @@ export default function SetupWizardPage() {
   };
   
   const handleProjectSelect = (projectRef: string) => {
-     if (projectRef === 'create_new') {
-        if (organizationId) {
-            const supabaseLaunchUrl = `https://supabase.com/dashboard/new?organization_id=${organizationId}`;
-            window.open(supabaseLaunchUrl, '_blank');
-        } else {
-            setError("Could not determine your Supabase organization. Please connect again.");
-        }
-        setSelectedProject(null); // Reset selection
-        return;
+    if (projectRef === 'create_new') {
+      if (organizationId) {
+        setShowCreateProject(true);
+      } else {
+        setError("Please connect to Supabase first to get your organization ID.");
+      }
+      setSelectedProject(null);
+      return;
     }
     const project = supabaseProjects.find(p => p.ref === projectRef);
     if (project) {
-        setSelectedProject(projectRef);
-        setSupabaseUrl(`https://${projectRef}.supabase.co`);
-        if (project.anonKey) {
-            setSupabaseKey(project.anonKey);
-        } else {
-            setError("Could not automatically fetch the API key for this project. Please enter it manually.")
-            setSupabaseKey(""); // Clear any previous key
+      setSelectedProject(projectRef);
+      setSupabaseUrl(`https://${projectRef}.supabase.co`);
+      if (project.anonKey) {
+          setSupabaseKey(project.anonKey);
+      } else {
+          setError("Could not automatically fetch the API key for this project. Please enter it manually.")
+          setSupabaseKey("");
+      }
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName || !newDbPassword) {
+      setError("Project name and database password are required.");
+      return;
+    }
+    setCreatingProject(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch("/api/create-supabase-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          organizationId, 
+          projectName: newProjectName, 
+          dbPassword: newDbPassword, 
+          region: newProjectRegion,
+          providerToken
+        }),
+      });
+      const newProject = await response.json();
+      if (!response.ok) {
+        throw new Error(newProject.error || "Failed to create project");
+      }
+      setSuccess(`Project "${newProject.name}" created! It may take a moment to be available.`);
+      setShowCreateProject(false);
+      setNewProjectName("");
+      setNewDbPassword("");
+      
+      // Wait a bit, then refetch projects and select the new one
+      setTimeout(() => {
+        if(providerToken){
+           fetchProjects(providerToken).then(() => {
+             // Find the new project and select it
+             const createdProject = supabaseProjects.find(p => p.id === newProject.id);
+             if (createdProject) {
+               handleProjectSelect(createdProject.ref);
+             } else {
+                 // If not found immediately, might need a slightly longer wait
+                 setTimeout(() => {
+                     if(providerToken) fetchProjects(providerToken);
+                 }, 5000)
+             }
+           });
         }
+      }, 3000); // 3-second delay to allow Supabase to provision
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+    } finally {
+      setCreatingProject(false);
     }
   };
 
@@ -226,6 +315,9 @@ export default function SetupWizardPage() {
         <div className="w-full max-w-2xl z-20">
         <div className="flex gap-2 mb-8">{[1, 2, 3, 4].map(s => <div key={s} className={`h-2 flex-1 rounded-full transition-all ${s <= step ? "bg-white" : "bg-border/50"}`} />)}</div>
 
+        {error && <Alert variant="destructive" className="mb-4"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+        {success && <Alert className="mb-4 border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>{success}</AlertDescription></Alert>}
+
         {step === 1 && (
           <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader><CardTitle>Connect OpenRouter</CardTitle><CardDescription>Enter your OpenRouter API key.</CardDescription></CardHeader>
@@ -235,7 +327,6 @@ export default function SetupWizardPage() {
                 <label className="block text-sm font-medium mb-2">OpenRouter API Key</label>
                 <Input type="password" placeholder="sk-or-..." value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)} className="bg-background/50" />
               </div>
-              {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
               <Button onClick={testOpenRouterKey} disabled={!openRouterKey || testing} className="w-full bg-white text-black hover:bg-gray-200">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
             </CardContent>
           </Card>
@@ -245,16 +336,24 @@ export default function SetupWizardPage() {
           <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader><CardTitle>Connect Supabase</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-                <Button onClick={handleSupabaseConnect} disabled={testing} className="w-full bg-green-500 hover:bg-green-600 text-white">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connecting...</> : "Connect with Supabase"}</Button>
+                 {providerToken ? (
+                    <div className="p-3 rounded-lg bg-white/10 border border-white/20 flex justify-between items-center">
+                        <p className="font-semibold text-green-300">Supabase Connected</p>
+                        <Button variant="outline" size="sm" onClick={() => { setProviderToken(null); setRefreshToken(null); setSupabaseProjects([]); setOrganizationId(null); setSupabaseUrl(''); setSupabaseKey(''); }}>Disconnect</Button>
+                    </div>
+                 ) : (
+                    <Button onClick={handleSupabaseConnect} disabled={testing} className="w-full bg-green-500 hover:bg-green-600 text-white">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connecting...</> : "Connect with Supabase"}</Button>
+                 )
+                }
 
-              {(supabaseProjects.length > 0 || projectsFetched) && (
+              {(supabaseProjects.length > 0 || providerToken) && (
                 <div className="space-y-4">
-                   <label className="block text-sm font-medium">Select your project</label>
-                   <Select onValueChange={handleProjectSelect} defaultValue={selectedProject || undefined}>
+                   <label className="block text-sm font-medium">Select or create a project</label>
+                   <Select onValueChange={handleProjectSelect} value={selectedProject || ''}>
                      <SelectTrigger className="w-full bg-background/50"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
                      <SelectContent>
                         {supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}
-                        <SelectItem value="create_new">+ Create a new project</SelectItem>
+                        {providerToken && <SelectItem value="create_new">+ Create a new project</SelectItem>}
                       </SelectContent>
                    </Select>
                 </div>
@@ -265,12 +364,11 @@ export default function SetupWizardPage() {
               <div><label className="block text-sm font-medium mb-2">Supabase Project URL</label><Input type="text" placeholder="https://xxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} className="bg-background/50" /></div>
               <div><label className="block text-sm font-medium mb-2">Supabase Anon (Public) Key</label><Input type="password" placeholder="eyJhbGciOiJIUzI1NiIsIn..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} className="bg-background/50" /></div>
 
-              {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
               {connectionSuccess && <Alert className="border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>Connected successfully!</AlertDescription></Alert>}
 
               <div className="flex gap-3 pt-4">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
-                <Button onClick={handleSupabaseStepContinue} disabled={testing} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
+                <Button onClick={handleSupabaseStepContinue} disabled={testing || !selectedProject} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
               </div>
             </CardContent>
           </Card>
@@ -305,6 +403,28 @@ export default function SetupWizardPage() {
             </CardContent>
           </Card>
         )}
+        <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Create New Supabase Project</DialogTitle>
+                    <DialogDescription>This will create a new project in your Supabase organization.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Input placeholder="Project Name" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} />
+                    <Input type="password" placeholder="Database Password (at least 8 characters)" value={newDbPassword} onChange={e => setNewDbPassword(e.target.value)} />
+                    <Select onValueChange={setNewProjectRegion} defaultValue={newProjectRegion}>
+                        <SelectTrigger><SelectValue placeholder="Select a region" /></SelectTrigger>
+                        <SelectContent>
+                            {SUPABASE_REGIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateProject(false)}>Cancel</Button>
+                    <Button onClick={handleCreateProject} disabled={creatingProject}>{creatingProject ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Creating...</> : "Create Project"}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
