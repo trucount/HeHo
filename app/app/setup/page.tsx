@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from "react"
@@ -369,26 +370,19 @@ export default function SetupWizardPage() {
                 >
                   Back
                 </Button>
-                 <Button
-                  variant="secondary"
-                  onClick={handleSkipSupabase}
-                  className="flex-1"
-                >
-                  Skip for now
-                </Button>
                 <Button
-                  onClick={testSupabaseConnection}
-                  disabled={testing || !supabaseUrl || !supabaseKey}
+                  onClick={supabaseUrl && supabaseKey ? testSupabaseConnection : handleSkipSupabase}
+                  disabled={testing}
                   className="flex-1 bg-white hover:bg-gray-200 text-black"
                 >
-                  {testing ? (
+                  {testing && (supabaseUrl && supabaseKey) ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Testing...
                     </>
                   ) : (
                     <>
-                      Continue
+                      {supabaseUrl && supabaseKey ? 'Continue' : 'Skip for now'}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
