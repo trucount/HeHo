@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No code provided" }, { status: 400 });
   }
 
+  const redirectUri = `${new URL(req.url).origin}/app/setup`;
+
   try {
     // Exchange code for an access token
     const tokenResponse = await fetch("https://api.supabase.com/v1/oauth/token", {
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
         client_id: supabaseOAuthConfig.clientId,
         client_secret: supabaseOAuthConfig.clientSecret,
         code: code,
-        redirect_uri: new URL("/app/setup", req.url).origin,
+        redirect_uri: redirectUri,
       }),
     });
 
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     if (tokenData.error) {
       console.error("Error fetching token:", tokenData.error_description);
-      return NextResponse.json({ error: "Failed to fetch Supabase token" }, { status: 400 });
+      return NextResponse.json({ error: `Failed to fetch Supabase token: ${tokenData.error_description}` }, { status: 400 });
     }
 
     const accessToken = tokenData.access_token;
@@ -46,7 +48,8 @@ export async function GET(req: NextRequest) {
     
     if (!projectsResponse.ok) {
         console.error("Error fetching projects:", projects);
-        return NextResponse.json({ error: "Failed to fetch Supabase projects" }, { status: 500 });
+        const errorMessage = projects?.error_description || projects?.error || JSON.stringify(projects);
+        return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
     }
 
     return NextResponse.json({ projects });
