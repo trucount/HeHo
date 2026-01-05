@@ -13,31 +13,34 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${new URL(req.url).origin}/app/setup`;
 
   try {
+    const requestBody = {
+      grant_type: "authorization_code",
+      client_id: supabaseOAuthConfig.clientId,
+      client_secret: supabaseOAuthConfig.clientSecret,
+      code: code,
+      redirect_uri: redirectUri,
+    };
+
+    // --- START: Definitive Request Body Logging ---
+    console.log("CRITICAL DEBUG: Sending this body to Supabase:", JSON.stringify(requestBody, null, 2));
+    // --- END: Definitive Request Body Logging ---
+
     const tokenResponse = await fetch("https://api.supabase.com/v1/oauth/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        grant_type: "authorization_code",
-        client_id: supabaseOAuthConfig.clientId,
-        client_secret: supabaseOAuthConfig.clientSecret,
-        code: code,
-        redirect_uri: redirectUri,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const tokenData = await tokenResponse.json();
 
-    // --- START: Enhanced Response Logging ---
-    // Log the entire response from the token endpoint for debugging
     console.log("DEBUG: Full response from Supabase token endpoint:", JSON.stringify(tokenData, null, 2));
-    // --- END: Enhanced Response Logging ---
 
     if (!tokenResponse.ok || !tokenData.access_token) {
-      const errorDescription = tokenData.error_description || "The response from Supabase did not include a valid access token. Check the Vercel logs for the full response body.";
+      const errorDescription = tokenData.error_description || `The Supabase API responded with: ${JSON.stringify(tokenData)}`;
       console.error("Error fetching token from Supabase:", errorDescription);
-      return NextResponse.json({ error: `Failed to fetch Supabase token: ${errorDescription}` }, { status: 400 });
+      return NextResponse.json({ error: `Failed to fetch Supabase token. ${errorDescription}` }, { status: 400 });
     }
 
     const accessToken = tokenData.access_token;
