@@ -21,24 +21,18 @@ export async function GET(req: NextRequest) {
       redirect_uri: redirectUri,
     };
 
-    // --- START: Definitive Request Body Logging ---
-    console.log("CRITICAL DEBUG: Sending this body to Supabase:", JSON.stringify(requestBody, null, 2));
-    // --- END: Definitive Request Body Logging ---
-
     const tokenResponse = await fetch("https://api.supabase.com/v1/oauth/token", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify(requestBody),
+      body: new URLSearchParams(requestBody).toString(),
     });
 
     const tokenData = await tokenResponse.json();
 
-    console.log("DEBUG: Full response from Supabase token endpoint:", JSON.stringify(tokenData, null, 2));
-
     if (!tokenResponse.ok || !tokenData.access_token) {
-      const errorDescription = tokenData.error_description || `The Supabase API responded with: ${JSON.stringify(tokenData)}`;
+      const errorDescription = tokenData.error_description || `The Supabase API responded with an error: ${JSON.stringify(tokenData)}`;
       console.error("Error fetching token from Supabase:", errorDescription);
       return NextResponse.json({ error: `Failed to fetch Supabase token. ${errorDescription}` }, { status: 400 });
     }
