@@ -55,8 +55,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
     }
 
+    const organizationId = projects.length > 0 ? projects[0].organization_id : null;
+
     const projectsWithKeys = await Promise.all(
-      projects.map(async (project: { id: string; name: string; ref: string }) => {
+      projects.map(async (project: any) => {
         const keysResponse = await fetch(`https://api.supabase.com/v1/projects/${project.ref}/api-keys`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
@@ -87,6 +89,7 @@ export async function GET(req: NextRequest) {
       projects: projectsWithKeys,
       provider_token: providerToken,
       refresh_token: refreshToken,
+      organization_id: organizationId,
     });
 
   } catch (error) {

@@ -22,8 +22,9 @@ export default function SetupWizardPage() {
   const [supabaseProjects, setSupabaseProjects] = useState<any[]>([])
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [projectsFetched, setProjectsFetched] = useState(false)
-   const [providerToken, setProviderToken] = useState<string | null>(null)
+  const [providerToken, setProviderToken] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState<string | null>(null)
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [permissions, setPermissions] = useState({
     can_read: true,
     can_insert: true,
@@ -76,6 +77,7 @@ export default function SetupWizardPage() {
             setSupabaseProjects(data.projects);
             setProviderToken(data.provider_token)
             setRefreshToken(data.refresh_token)
+            setOrganizationId(data.organization_id)
             setStep(2);
           }
         })
@@ -100,10 +102,14 @@ export default function SetupWizardPage() {
   
   const handleProjectSelect = (projectRef: string) => {
      if (projectRef === 'create_new') {
-      const supabaseLaunchUrl = `https://supabase.com/dashboard/new`;
-      window.open(supabaseLaunchUrl, '_blank');
-      setSelectedProject(null); // Reset selection
-      return;
+        if (organizationId) {
+            const supabaseLaunchUrl = `https://supabase.com/dashboard/new?organization_id=${organizationId}`;
+            window.open(supabaseLaunchUrl, '_blank');
+        } else {
+            setError("Could not determine your Supabase organization. Please connect again.");
+        }
+        setSelectedProject(null); // Reset selection
+        return;
     }
     const project = supabaseProjects.find(p => p.ref === projectRef);
     if (project) {
