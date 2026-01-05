@@ -474,7 +474,7 @@ export default function SetupWizardPage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-foreground">
                   At minimum, your AI needs Read and Insert permissions to function
-                </Alert>
+                </AlertDescription>
               </Alert>
 
               <div className="flex gap-3">
