@@ -148,25 +148,30 @@ export default function SetupWizardPage() {
     }
   }
 
-  const saveSetup = async () => {
+ const saveSetup = async () => {
     if (!user) return;
     localStorage.removeItem('setupState');
     setTesting(true);
     setError(null);
     try {
-      const updateData: any = {
-        openrouter_key: openRouterKey,
+      const upsertData: any = {
+        id: user.id,
+        email: user.email,
+        openrouter_key_encrypted: openRouterKey,
         setup_completed: true,
       };
 
       if (supabaseUrl && supabaseKey) {
-        updateData.supabase_url = supabaseUrl;
-        updateData.supabase_key = supabaseKey; 
-        updateData.supabase_permissions = permissions;
+        upsertData.supabase_url = supabaseUrl;
+        upsertData.supabase_key_encrypted = supabaseKey;
+        upsertData.supabase_permissions = permissions;
       }
 
-      const { error: updateError } = await supabase.from("users").update(updateData).eq("id", user.id);
-      if (updateError) throw updateError;
+      const { error } = await supabase.from("users").upsert(upsertData, {
+        onConflict: 'id'
+      });
+
+      if (error) throw error;
 
       router.push("/app/dashboard");
     } catch (err) {
@@ -175,6 +180,7 @@ export default function SetupWizardPage() {
       setTesting(false);
     }
   };
+
 
   const handleSupabaseStepContinue = () => {
     const hasInteracted = supabaseUrl || supabaseKey || selectedProject;
