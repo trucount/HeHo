@@ -3,6 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseOAuthConfig } from "@/lib/supabase/config";
 
 export async function GET(req: NextRequest) {
+  // --- START: Environment Variable Check ---
+  if (!supabaseOAuthConfig.clientId || !supabaseOAuthConfig.clientSecret) {
+    const errorMessage = "Missing Supabase OAuth environment variables. Please check your `.env.local` file and ensure SUPABASE_OAUTH_CLIENT_ID and SUPABASE_OAUTH_CLIENT_SECRET are set, then restart your development server.";
+    console.error(errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+  // --- END: Environment Variable Check ---
+
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
 
@@ -30,9 +38,10 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenResponse.json();
 
-    if (tokenData.error) {
-      console.error("Error fetching token:", tokenData.error_description);
-      return NextResponse.json({ error: `Failed to fetch Supabase token: ${tokenData.error_description}` }, { status: 400 });
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      const errorDescription = tokenData.error_description || "The response from Supabase did not include a valid access token. Please verify your Client ID and Secret in your .env.local file.";
+      console.error("Error fetching token:", tokenData);
+      return NextResponse.json({ error: `Failed to fetch Supabase token: ${errorDescription}` }, { status: 400 });
     }
 
     const accessToken = tokenData.access_token;
@@ -48,7 +57,7 @@ export async function GET(req: NextRequest) {
     
     if (!projectsResponse.ok) {
         console.error("Error fetching projects:", projects);
-        const errorMessage = projects?.error_description || projects?.error || JSON.stringify(projects);
+        const errorMessage = projects?.error_description || projects?.error?.message || JSON.stringify(projects);
         return NextResponse.json({ error: `Failed to fetch Supabase projects: ${errorMessage}` }, { status: 500 });
     }
 
