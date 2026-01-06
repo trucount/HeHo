@@ -11,7 +11,6 @@ import { ArrowRight, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { supabaseOAuthConfig } from "@/lib/supabase/config"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 const SUPABASE_REGIONS = [
   { value: "ap-northeast-1", label: "Asia Pacific (Tokyo)" },
@@ -30,6 +29,7 @@ const SUPABASE_REGIONS = [
 
 export default function SetupWizardPage() {
   const [step, setStep] = useState(1)
+  const [step2SubStep, setStep2SubStep] = useState('select');
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [openRouterKey, setOpenRouterKey] = useState("")
@@ -46,7 +46,6 @@ export default function SetupWizardPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
   const [connectionSuccess, setConnectionSuccess] = useState(false)
-  const [showCreateProject, setShowCreateProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState("")
   const [newDbPassword, setNewDbPassword] = useState("")
   const [newProjectRegion, setNewProjectRegion] = useState("us-east-1")
@@ -139,7 +138,7 @@ export default function SetupWizardPage() {
   const handleProjectSelect = (projectRef: string) => {
     if (projectRef === 'create_new') {
       if (organizationId) {
-        setShowCreateProject(true);
+        setStep2SubStep('create');
       } else {
         setError("Please connect to Supabase first to get your organization ID.");
       }
@@ -159,7 +158,7 @@ export default function SetupWizardPage() {
     }
   };
 
-  const handleCreateProject = async () => {
+ const handleCreateProject = async () => {
     if (!newProjectName || !newDbPassword) {
       setError("Project name and database password are required.");
       return;
@@ -184,7 +183,7 @@ export default function SetupWizardPage() {
         throw new Error(newProject.error || "Failed to create project");
       }
       setSuccess(`Project "${newProject.name}" created! It may take a moment to be available.`);
-      setShowCreateProject(false);
+      setStep2SubStep('select');
       setNewProjectName("");
       setNewDbPassword("");
       
@@ -333,45 +332,69 @@ export default function SetupWizardPage() {
         )}
 
         {step === 2 && (
-          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
-            <CardHeader><CardTitle>Connect Supabase</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
-            <CardContent className="space-y-6">
-                 {providerToken ? (
-                    <div className="p-3 rounded-lg bg-white/10 border border-white/20 flex justify-between items-center">
-                        <p className="font-semibold text-green-300">Supabase Connected</p>
-                        <Button variant="outline" size="sm" onClick={() => { setProviderToken(null); setRefreshToken(null); setSupabaseProjects([]); setOrganizationId(null); setSupabaseUrl(''); setSupabaseKey(''); }}>Disconnect</Button>
-                    </div>
-                 ) : (
-                    <Button onClick={handleSupabaseConnect} disabled={testing} className="w-full bg-green-500 hover:bg-green-600 text-white">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connecting...</> : "Connect with Supabase"}</Button>
-                 )
-                }
+            <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+                {step2SubStep === 'select' ? (
+                    <>
+                        <CardHeader><CardTitle>Connect Supabase</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
+                        <CardContent className="space-y-6">
+                            {providerToken ? (
+                                <div className="p-3 rounded-lg bg-white/10 border border-white/20 flex justify-between items-center">
+                                    <p className="font-semibold text-green-300">Supabase Connected</p>
+                                    <Button variant="outline" size="sm" onClick={() => { setProviderToken(null); setRefreshToken(null); setSupabaseProjects([]); setOrganizationId(null); setSupabaseUrl(''); setSupabaseKey(''); }}>Disconnect</Button>
+                                </div>
+                            ) : (
+                                <Button onClick={handleSupabaseConnect} disabled={testing} className="w-full bg-green-500 hover:bg-green-600 text-white">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Connecting...</> : "Connect with Supabase"}</Button>
+                            )}
 
-              {(supabaseProjects.length > 0 || providerToken) && (
-                <div className="space-y-4">
-                   <label className="block text-sm font-medium">Select or create a project</label>
-                   <Select onValueChange={handleProjectSelect} value={selectedProject || ''}>
-                     <SelectTrigger className="w-full bg-background/50"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
-                     <SelectContent>
-                        {supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}
-                        {providerToken && <SelectItem value="create_new">+ Create a new project</SelectItem>}
-                      </SelectContent>
-                   </Select>
-                </div>
-              )}
+                            {(supabaseProjects.length > 0 || providerToken) && (
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-medium">Select or create a project</label>
+                                    <Select onValueChange={handleProjectSelect} value={selectedProject || ''}>
+                                        <SelectTrigger className="w-full bg-background/50"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
+                                        <SelectContent>
+                                            {supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}
+                                            {providerToken && <SelectItem value="create_new">+ Create a new project</SelectItem>}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
 
-              <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or manually</span></div></div>
+                            <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or manually</span></div></div>
 
-              <div><label className="block text-sm font-medium mb-2">Supabase Project URL</label><Input type="text" placeholder="https://xxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} className="bg-background/50" /></div>
-              <div><label className="block text-sm font-medium mb-2">Supabase Anon (Public) Key</label><Input type="password" placeholder="eyJhbGciOiJIUzI1NiIsIn..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} className="bg-background/50" /></div>
+                            <div><label className="block text-sm font-medium mb-2">Supabase Project URL</label><Input type="text" placeholder="https://xxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} className="bg-background/50" /></div>
+                            <div><label className="block text-sm font-medium mb-2">Supabase Anon (Public) Key</label><Input type="password" placeholder="eyJhbGciOiJIUzI1NiIsIn..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} className="bg-background/50" /></div>
 
-              {connectionSuccess && <Alert className="border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>Connected successfully!</AlertDescription></Alert>}
+                            {connectionSuccess && <Alert className="border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>Connected successfully!</AlertDescription></Alert>}
 
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
-                <Button onClick={handleSupabaseStepContinue} disabled={testing || !selectedProject} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
-              </div>
-            </CardContent>
-          </Card>
+                            <div className="flex gap-3 pt-4">
+                                <Button variant="outline" onClick={() => setStep(1)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
+                                <Button onClick={handleSupabaseStepContinue} disabled={testing || !selectedProject} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
+                            </div>
+                        </CardContent>
+                    </>
+                ) : (
+                    <>
+                        <CardHeader>
+                            <CardTitle>Create New Supabase Project</CardTitle>
+                            <CardDescription>This will create a new project in your Supabase organization.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Input placeholder="Project Name" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} />
+                            <Input type="password" placeholder="Database Password (at least 8 characters)" value={newDbPassword} onChange={e => setNewDbPassword(e.target.value)} />
+                            <Select onValueChange={setNewProjectRegion} defaultValue={newProjectRegion}>
+                                <SelectTrigger><SelectValue placeholder="Select a region" /></SelectTrigger>
+                                <SelectContent>
+                                    {SUPABASE_REGIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <div className="flex gap-3 pt-4">
+                               <Button variant="outline" onClick={() => setStep2SubStep('select')}>Cancel</Button>
+                               <Button onClick={handleCreateProject} disabled={creatingProject} className="flex-1">{creatingProject ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Creating...</> : "Create Project"}</Button>
+                            </div>
+                        </CardContent>
+                    </>
+                )}
+            </Card>
         )}
 
         {step === 3 && (
@@ -403,28 +426,6 @@ export default function SetupWizardPage() {
             </CardContent>
           </Card>
         )}
-        <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Create New Supabase Project</DialogTitle>
-                    <DialogDescription>This will create a new project in your Supabase organization.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <Input placeholder="Project Name" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} />
-                    <Input type="password" placeholder="Database Password (at least 8 characters)" value={newDbPassword} onChange={e => setNewDbPassword(e.target.value)} />
-                    <Select onValueChange={setNewProjectRegion} defaultValue={newProjectRegion}>
-                        <SelectTrigger><SelectValue placeholder="Select a region" /></SelectTrigger>
-                        <SelectContent>
-                            {SUPABASE_REGIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowCreateProject(false)}>Cancel</Button>
-                    <Button onClick={handleCreateProject} disabled={creatingProject}>{creatingProject ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Creating...</> : "Create Project"}</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
       </div>
     </div>
   )
