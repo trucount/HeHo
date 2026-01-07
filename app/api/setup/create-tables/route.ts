@@ -57,30 +57,30 @@ export async function POST(request: Request) {
   const accessToken = provider_token;
 
   try {
-    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/database/migrate`, {
+    // Corrected the API endpoint from /database/migrate to /sql
+    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/sql`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        migration: [SQL_MIGRATION],
-        allow_irreversible: true 
-      })
+      // Corrected the request body to use the 'query' field
+      body: JSON.stringify({ query: SQL_MIGRATION })
     });
 
-    const result = await response.json();
-
-    if (!response.ok) {
-        console.error("Supabase Migration API Error:", result);
-        const errorMessage = result.error?.message || `An error occurred with the Supabase Migration API. Status: ${response.status}`;
-        return NextResponse.json({ error: errorMessage }, { status: response.status });
+    // The /sql endpoint returns 200 OK with an empty response on success
+    // so we can't parse it as JSON if the request was successful.
+    if (response.ok) {
+      return NextResponse.json({ message: "Tables created successfully!" });
+    } else {
+      const result = await response.json();
+      console.error("Supabase SQL API Error:", result);
+      const errorMessage = result.error?.message || `An error occurred with the Supabase SQL API. Status: ${response.status}`;
+      return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
 
-    return NextResponse.json({ message: "Tables created successfully!", ...result });
-
   } catch (err: any) {
-    console.error('Error calling Supabase Migration API:', err);
+    console.error('Error calling Supabase SQL API:', err);
     return NextResponse.json({ error: 'An unexpected error occurred while creating tables.' }, { status: 500 });
   }
 }
