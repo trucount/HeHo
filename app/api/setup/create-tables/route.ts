@@ -1,7 +1,6 @@
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,41 +45,49 @@ CREATE TABLE IF NOT EXISTS sales (
 export async function POST(request: Request) {
   const { project_ref, provider_token } = await request.json();
 
-  if (!project_ref) {
-    return NextResponse.json({ error: 'Project reference is required' }, { status: 400 });
-  }
-
-  if (!provider_token) {
-    return NextResponse.json({ error: 'Supabase access token not found.' }, { status: 400 });
+  if (!project_ref || !provider_token) {
+    return NextResponse.json({ error: 'Project reference and provider token are required' }, { status: 400 });
   }
 
   const accessToken = provider_token;
 
   try {
-    // Corrected the API endpoint from /database/migrate to /sql
-    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/sql`, {
-      method: 'POST',
+    // Step 1: Use the provider token to securely fetch the project's service_role key.
+    const keysResponse = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/api-keys`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
       },
-      // Corrected the request body to use the 'query' field
-      body: JSON.stringify({ query: SQL_MIGRATION })
     });
 
-    // The /sql endpoint returns 200 OK with an empty response on success
-    // so we can't parse it as JSON if the request was successful.
-    if (response.ok) {
-      return NextResponse.json({ message: "Tables created successfully!" });
-    } else {
-      const result = await response.json();
-      console.error("Supabase SQL API Error:", result);
-      const errorMessage = result.error?.message || `An error occurred with the Supabase SQL API. Status: ${response.status}`;
-      return NextResponse.json({ error: errorMessage }, { status: response.status });
+    if (!keysResponse.ok) {
+      const errorBody = await keysResponse.json();
+      console.error("Failed to fetch API keys:", errorBody);
+      throw new Error(`Failed to fetch project API keys. Status: ${keysResponse.status}`);
     }
 
+    const apiKeys = await keysResponse.json();
+    const serviceRoleKey = apiKeys.find((key: any) => key.name === 'service_role')?.api_key;
+
+    if (!serviceRoleKey) {
+      throw new Error('Service role key not found for the project. Make sure the OAuth app has permission.');
+    }
+
+    // Step 2: Create a new, temporary admin client using the fetched service_role key.
+    const supabaseUrl = `https://${project_ref}.supabase.co`;
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Step 3: Execute the SQL to create the tables.
+    const { error: migrationError } = await supabaseAdmin.sql(SQL_MIGRATION);
+
+    if (migrationError) {
+      console.error("Supabase Migration Error:", migrationError);
+      throw new Error(`SQL Migration failed: ${migrationError.message}`);
+    }
+
+    return NextResponse.json({ message: "Tables created successfully!" });
+
   } catch (err: any) {
-    console.error('Error calling Supabase SQL API:', err);
-    return NextResponse.json({ error: 'An unexpected error occurred while creating tables.' }, { status: 500 });
+    console.error('Error in create-tables endpoint:', err);
+    return NextResponse.json({ error: err.message || 'An unexpected error occurred while creating tables.' }, { status: 500 });
   }
 }
