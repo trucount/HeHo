@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// The SQL migration script
 const SQL_MIGRATION = `
 CREATE TABLE IF NOT EXISTS products (
     id bigserial PRIMARY KEY,
@@ -45,34 +44,17 @@ CREATE TABLE IF NOT EXISTS sales (
 `;
 
 export async function POST(request: Request) {
-  const { project_ref } = await request.json();
+  const { project_ref, provider_token } = await request.json();
 
   if (!project_ref) {
     return NextResponse.json({ error: 'Project reference is required' }, { status: 400 });
   }
 
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  const accessToken = session.provider_token;
-  if (!accessToken) {
+  if (!provider_token) {
     return NextResponse.json({ error: 'Supabase access token not found.' }, { status: 400 });
   }
+
+  const accessToken = provider_token;
 
   try {
     const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/database/migrate`, {

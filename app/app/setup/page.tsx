@@ -261,8 +261,8 @@ export default function SetupWizardPage() {
   }
 
   const handleCreateTableAndVerify = async () => {
-    if (!selectedProject) {
-        setTablesError("A Supabase project must be selected.");
+    if (!selectedProject || !providerToken) {
+        setTablesError("A Supabase project must be selected and you must be connected.");
         return;
     }
     setIsTablesLoading(true);
@@ -274,7 +274,7 @@ export default function SetupWizardPage() {
         const createResponse = await fetch('/api/setup/create-tables', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project_ref: selectedProject }),
+            body: JSON.stringify({ project_ref: selectedProject, provider_token: providerToken }),
         });
         const createResult = await createResponse.json();
         if (!createResponse.ok) throw new Error(createResult.error || "Table creation failed.");
