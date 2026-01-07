@@ -1,20 +1,17 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Loader2 } from "lucide-react"
+import { MoreHorizontal, Loader2, PlusCircle } from "lucide-react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 
-// These are the tables that were automatically created during setup.
-// We will allow full CRUD operations on them.
 const EDITABLE_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
 
 interface TableData {
@@ -35,12 +32,12 @@ export default function ViewTablePage() {
   const [newRowData, setNewRowData] = useState<TableData>({});
   const [editingRow, setEditingRow] = useState<TableData | null>(null);
   const [deletingRow, setDeletingRow] = useState<TableData | null>(null);
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const params = useParams()
-  const router = useRouter()
   const tableName = decodeURIComponent(params.tableName as string);
   
-  // Check if the current table is one of the default editable tables.
   const isEditable = EDITABLE_TABLES.includes(tableName);
 
   const supabase = createClient()
@@ -56,6 +53,10 @@ export default function ViewTablePage() {
 
       if (result.data.length > 0) {
         setColumns(Object.keys(result.data[0]))
+      } else {
+        // Even if there's no data, we might have column info from a schema endpoint in the future
+        // For now, clear columns if no data
+        setColumns([]);
       }
       setData(result.data)
       setPrimaryKey(result.primaryKey);
@@ -74,6 +75,7 @@ export default function ViewTablePage() {
   }, [tableName])
 
   const handleAddRow = async () => {
+    setIsSubmitting(true);
     setError(null);
     try {
       const response = await fetch('/api/database/add', {
@@ -83,16 +85,19 @@ export default function ViewTablePage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      fetchData();
+      await fetchData();
       setIsAddDialogOpen(false);
       setNewRowData({});
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   const handleEditRow = async () => {
     if (!editingRow || !primaryKey) return;
+    setIsSubmitting(true);
     setError(null);
     try {
       const rowId = editingRow[primaryKey];
@@ -103,16 +108,19 @@ export default function ViewTablePage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      fetchData();
+      await fetchData();
       setIsEditDialogOpen(false);
       setEditingRow(null);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   const handleDeleteRow = async () => {
     if (!deletingRow || !primaryKey) return;
+    setIsSubmitting(true);
     setError(null);
     try {
       const rowId = deletingRow[primaryKey];
@@ -123,65 +131,63 @@ export default function ViewTablePage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      fetchData();
+      await fetchData();
       setIsDeleteDialogOpen(false);
       setDeletingRow(null);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="flex-1 p-8 overflow-auto">
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                        <CardTitle className="text-2xl font-bold">{tableName}</CardTitle>
-                        <CardDescription>{isEditable ? "You can add, edit, and delete rows in this table." : "This table is read-only from the dashboard."}</CardDescription>
-                    </div>
-                    {/* Only show the Add button if the table is editable */}
-                    {isEditable && <Button onClick={() => setIsAddDialogOpen(true)}>Add Row</Button>}
-                </div>
-            </CardHeader>
-            <CardContent>
-                {loading && <div className="flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}
-                {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-                {!loading && !error && data.length > 0 && (
-                    <Table>
-                        <TableHeader><TableRow>{columns.map(col => <TableHead key={col}>{col}</TableHead>)}<TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {data.map((row, i) => (
-                            <TableRow key={i}>
-                                {columns.map(col => <TableCell key={col}>{String(row[col])}</TableCell>)}
-                                <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><span className="sr-only">Open menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        {/* Only show Edit and Delete options if the table is editable */}
-                                        {isEditable ? (
-                                            <>
-                                                <DropdownMenuItem onClick={() => { setEditingRow(row); setIsEditDialogOpen(true); }}>Edit</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => { setDeletingRow(row); setIsDeleteDialogOpen(true); }}>Delete</DropdownMenuItem>
-                                            </>
-                                        ) : (
-                                            <DropdownMenuItem disabled>Read-only</DropdownMenuItem>
-                                        )}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-                 {!loading && !error && data.length === 0 && (
-                    <div className="text-center py-12">
-                        <p className="text-muted-foreground">This table is empty.</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+    <div className="p-8">
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+            <h1 className="text-4xl font-bold tracking-tight">{tableName}</h1>
+            <p className="text-muted-foreground mt-2">{isEditable ? "You can add, edit, and delete rows in this table." : "This table is read-only from the dashboard."}</p>
+        </div>
+        {isEditable && <Button onClick={() => setIsAddDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4"/> Add Row</Button>}
+      </header>
+      
+      {error && <Alert variant="destructive" className="mb-4"><AlertDescription>{error}</AlertDescription></Alert>}
+      
+      {loading ? (
+        <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>
+      ) : !error && columns.length > 0 ? (
+        <div className="border rounded-lg">
+            <Table>
+                <TableHeader><TableRow>{columns.map(col => <TableHead key={col}>{col}</TableHead>)}<TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                <TableBody>
+                    {data.map((row, i) => (
+                    <TableRow key={i}>
+                        {columns.map(col => <TableCell key={col}>{String(row[col])}</TableCell>)}
+                        <TableCell>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><span className="sr-only">Open menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                {isEditable ? (
+                                    <>
+                                        <DropdownMenuItem onClick={() => { setEditingRow(row); setIsEditDialogOpen(true); }}>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => { setDeletingRow(row); setIsDeleteDialogOpen(true); }} className="text-red-500">Delete</DropdownMenuItem>
+                                    </>
+                                ) : (
+                                    <DropdownMenuItem disabled>Read-only</DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+      ) : (
+        <div className="text-center py-16 border rounded-lg">
+            <p className="text-muted-foreground">This table is empty.</p>
+        </div>
+      )}
 
       {/* Add Row Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -195,7 +201,7 @@ export default function ViewTablePage() {
               </div>
             ))}
           </div>
-          <DialogFooter><Button onClick={handleAddRow}>Add Row</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleAddRow} disabled={isSubmitting}>{isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Add Row</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -213,7 +219,7 @@ export default function ViewTablePage() {
                 ))}
             </div>
           )}
-          <DialogFooter><Button onClick={handleEditRow}>Save Changes</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleEditRow} disabled={isSubmitting}>{isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save Changes</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -221,7 +227,7 @@ export default function ViewTablePage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the row.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteRow}>Continue</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={handleDeleteRow} disabled={isSubmitting}>{isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Delete</Button></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
