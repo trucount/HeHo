@@ -79,8 +79,8 @@ export default function DatabasePage() {
       <div className="container mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Database Tables</h1>
-            <p className="text-muted-foreground mt-1">View default tables or connect to other tables in your database.</p>
+            <h1 className="text-3xl font-bold text-foreground">Database</h1>
+            <p className="text-muted-foreground mt-1">View tables in your database.</p>
           </div>
           <Button asChild className="bg-black hover:bg-gray-900 text-white border border-white/20">
             <Link href="/app/database/connect"><Plus className="mr-2 h-4 w-4"/> Connect a Table</Link>

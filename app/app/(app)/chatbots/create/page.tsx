@@ -75,6 +75,8 @@ const THEMES = [
   { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400' },
 ]
 
+const DEFAULT_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
+
 interface ConnectedTable {
   id: number
   table_name: string
@@ -96,7 +98,7 @@ export default function CreateChatbotPage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [chatbotCount, setChatbotCount] = useState(0)
-  const [connectedTables, setConnectedTables] = useState<ConnectedTable[]>([])
+  const [allDataSources, setAllDataSources] = useState<string[]>([]);
   const router = useRouter()
   const supabase = createClient()
 
@@ -119,14 +121,16 @@ export default function CreateChatbotPage() {
       // Fetch connected tables
       const { data: tablesData, error: tablesError } = await supabase
         .from('user_connected_tables')
-        .select('id, table_name')
+        .select('table_name')
         .eq('user_id', currentUser.id);
 
       if (tablesError) {
         console.error("Error fetching tables: ", tablesError.message);
         setError("Failed to load connected tables. Please try again.")
       } else {
-        setConnectedTables(tablesData || []);
+        const customTableNames = tablesData?.map(t => t.table_name) || [];
+        const combinedSources = Array.from(new Set([...DEFAULT_TABLES, ...customTableNames]));
+        setAllDataSources(combinedSources);
       }
 
       setLoading(false);
@@ -323,24 +327,24 @@ export default function CreateChatbotPage() {
                 {/* Data Source */}
                 <div>
                   <label className='block text-sm font-medium text-foreground mb-2'>Data Source (Optional)</label>
-                  <Select value={formData.data_table_name} onValueChange={(value) => setFormData({ ...formData, data_table_name: value })}>
+                  <Select value={formData.data_table_name} onValueChange={(value) => setFormData({ ...formData, data_item: value })}>
                     <SelectTrigger className='bg-background/50 border-border/50'>
                       <SelectValue placeholder='Select a table' />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value='_none_'>None</SelectItem>
-                      {connectedTables.map((t) => (
-                        <SelectItem key={t.id} value={t.table_name}>
+                      {allDataSources.map((tableName) => (
+                        <SelectItem key={tableName} value={tableName}>
                           <div className="flex items-center gap-2">
                             <Database className="h-4 w-4" />
-                            {t.table_name}
+                            {tableName}
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                   {connectedTables.length === 0 && (
-                    <p className='text-xs text-muted-foreground mt-2'>No database tables connected. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
+                   {allDataSources.length === 0 && (
+                    <p className='text-xs text-muted-foreground mt-2'>No database tables found. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
                   )}
                 </div>
 
