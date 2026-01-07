@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-const EDITABLE_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
+// All default tables are now editable
+const EDITABLE_TABLES = ['products', 'leads', 'customer_queries', 'sales', 'chat_history'];
 
 interface TableData {
     [key: string]: any
@@ -51,14 +52,14 @@ export default function ViewTablePage() {
 
       if (!response.ok) throw new Error(result.error);
 
-      if (result.data.length > 0) {
-        setColumns(Object.keys(result.data[0]))
+      const tableData = result.data || []; // Ensure data is always an array
+      setData(tableData);
+
+      if (tableData.length > 0) {
+        setColumns(Object.keys(tableData[0]));
       } else {
-        // Even if there's no data, we might have column info from a schema endpoint in the future
-        // For now, clear columns if no data
         setColumns([]);
       }
-      setData(result.data)
       setPrimaryKey(result.primaryKey);
 
     } catch (err: any) {
@@ -155,7 +156,7 @@ export default function ViewTablePage() {
       
       {loading ? (
         <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>
-      ) : !error && columns.length > 0 ? (
+      ) : !error && data.length > 0 ? (
         <div className="border rounded-lg">
             <Table>
                 <TableHeader><TableRow>{columns.map(col => <TableHead key={col}>{col}</TableHead>)}<TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
