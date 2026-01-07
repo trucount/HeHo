@@ -1,180 +1,131 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from 'react'
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, PlusCircle, Database } from "lucide-react"
-import Link from "next/link"
+import { Plus, Loader2, Database as DatabaseIcon, Zap, CheckCircle } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+// The four default tables.
+const DEFAULT_TABLES = [
+  { id: 'default-products', table_name: 'products' },
+  { id: 'default-leads', table_name: 'leads' },
+  { id: 'default-customer_queries', table_name: 'customer_queries' },
+  { id: 'default-sales', table_name: 'sales' },
+];
+
+// The tables that can be edited for free.
+const EDITABLE_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
 
 interface ConnectedTable {
-  id: string
-  table_name: string
-  user_id: string
+  id: string;
+  table_name: string;
 }
 
-export default function DatabaseDashboardPage() {
-  const [connectedTables, setConnectedTables] = useState<ConnectedTable[]>([])
+export default function DatabasePage() {
+  const [customTables, setCustomTables] = useState<ConnectedTable[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showConnectDialog, setShowConnectDialog] = useState(false)
-  const [tableName, setTableName] = useState("")
-  const [connecting, setConnecting] = useState(false);
-  const [isAutoCreating, setIsAutoCreating] = useState(false);
 
   const supabase = createClient()
 
-  const fetchConnectedTables = async () => {
-    const { data, error } = await supabase.from("user_connected_tables").select("*")
-    if (error) {
-      setError(error.message)
-    } else {
-      setConnectedTables(data as ConnectedTable[])
-    }
-    return data || [];
-  }
-
-  const handleAutoCreateAndConnect = async () => {
-    setIsAutoCreating(true);
-    setError(null);
-    try {
-        // First, get user details needed for the API call
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("You must be logged in to do this.");
-
-        const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('provider_token, supabase_url')
-            .eq('id', user.id)
-            .single();
-        
-        if (userError || !userData || !userData.provider_token || !userData.supabase_url) {
-            throw new Error("Could not find required Supabase connection details. Please try reconnecting your account in the setup page.");
-        }
-
-        const projectRef = new URL(userData.supabase_url).hostname.split('.')[0];
-
-        // Call the idempotent create-tables endpoint
-        const response = await fetch('/api/setup/create-tables', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project_ref: projectRef, provider_token: userData.provider_token }),
-        });
-
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Failed to create or connect tables.");
-
-        // Refresh the list of tables
-        await fetchConnectedTables();
-
-    } catch (err: any) {
-        setError(err.message)
-    } finally {
-        setIsAutoCreating(false);
-    }
-  }
-
   useEffect(() => {
-    setLoading(true);
-    fetchConnectedTables().then((initialTables) => {
-        if (initialTables.length === 0) {
-            handleAutoCreateAndConnect();
+    async function fetchCustomTables() {
+      setLoading(true)
+      setError(null)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          throw new Error("You must be logged in to view this page.");
         }
-    }).finally(() => {
-        setLoading(false);
-    });
-  }, [])
 
-  const handleConnectTable = async () => {
-    if (!tableName) return
-    setConnecting(true);
-    setError(null)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not found")
-      const { error } = await supabase.from("user_connected_tables").insert({ user_id: user.id, table_name: tableName })
-      if (error) throw error
-      await fetchConnectedTables()
-      setShowConnectDialog(false)
-      setTableName("")
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-        setConnecting(false);
+        const { data, error } = await supabase
+          .from('user_connected_tables')
+          .select('id, table_name')
+          .eq('user_id', user.id)
+
+        if (error) {
+          throw new Error(`Failed to load connected tables: ${error.message}.`);
+        }
+
+        setCustomTables(data || [])
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
+
+    fetchCustomTables()
+  }, [supabase])
+
+  // Create a unique list of all tables.
+  const allTablesMap = new Map();
+  [...DEFAULT_TABLES, ...customTables].forEach(table => allTablesMap.set(table.table_name, { id: table.id || table.table_name, ...table }));
+  const allTables = Array.from(allTablesMap.values());
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      </div>
+    )
   }
 
   return (
-    <div className="p-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">Database</h1>
-        <p className="text-muted-foreground mt-2">Manage your Supabase tables and schemas</p>
-      </header>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Database Tables</h1>
+            <p className="text-muted-foreground mt-1">View default tables or connect to other tables in your database.</p>
+          </div>
+          <Button asChild className="bg-black hover:bg-gray-900 text-white border border-white/20">
+            <Link href="/app/database/connect"><Plus className="mr-2 h-4 w-4"/> Connect a Table</Link>
+          </Button>
+        </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Your Connected Tables</CardTitle>
-                <CardDescription>Tables from your Supabase instance that the AI can access.</CardDescription>
-            </div>
-            <Button onClick={() => setShowConnectDialog(true)}><PlusCircle className="mr-2 h-4 w-4"/> Connect Table</Button>
-            <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
-                <DialogContent>
-                <DialogHeader><DialogTitle>Connect a Supabase Table</DialogTitle></DialogHeader>
-                {error && (
-                    <Alert variant="destructive" className="mt-4">
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
-                <div className="grid gap-4 py-4">
-                    <Label htmlFor="table-name">Table Name</Label>
-                    <Input id="table-name" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder="e.g., products" />
-                </div>
-                <DialogFooter>
-                    <Button onClick={() => {setShowConnectDialog(false); setError(null);}} variant="outline">Cancel</Button>
-                    <Button onClick={handleConnectTable} disabled={connecting}>
-                    {connecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Connect
-                    </Button>
-                </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </CardHeader>
-        <CardContent>
-          {(loading || isAutoCreating) ? (
-                <div className="flex flex-col items-center justify-center h-48">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary"/>
-                    <p className="text-muted-foreground mt-4">{isAutoCreating ? "Setting up default tables..." : "Loading tables..."}</p>
-                </div>
-            ) : error ? (
-                 <div className="flex flex-col items-center justify-center h-48 bg-red-500/10 rounded-lg">
-                    <p className="text-red-400 font-semibold">An error occurred</p>
-                    <p className="text-muted-foreground mt-2 text-center max-w-sm">{error}</p>
-                    <Button onClick={handleAutoCreateAndConnect} className="mt-4">Try Again</Button>
-                </div>
-            ) : connectedTables.length === 0 ? (
-            <div className="text-center py-12">
-              <Database className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No tables connected yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Please connect a table to see its data.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {connectedTables.map(table => (
-                <li key={table.id} className="py-3 px-2 flex justify-between items-center hover:bg-muted/50 rounded-md">
-                  <span className="font-mono text-sm">{table.table_name}</span>
-                  <Link href={`/app/database/${table.table_name}`} passHref>
-                    <Button variant="outline" size="sm">View</Button>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {allTables.map(table => {
+            const isEditable = EDITABLE_TABLES.includes(table.table_name);
+
+            return (
+              <Link key={table.id} href={`/app/database/${encodeURIComponent(table.table_name)}`} passHref>
+                <Card className="border-border/50 bg-card/50 hover:border-white/30 hover:bg-card/80 transition-all cursor-pointer h-full flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="text-foreground flex items-center gap-3">
+                      <DatabaseIcon className="h-6 w-6 text-muted-foreground"/>
+                      {table.table_name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow flex flex-col justify-between">
+                    <p className="text-muted-foreground text-sm">Click to view this table's data.</p>
+                    {isEditable ? (
+                       <div className="mt-4 p-2 rounded-md bg-green-900/30 border border-green-700/50 text-green-400 text-xs flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4"/>
+                          <span>This table can be edited.</span>
+                      </div>
+                    ) : (
+                      <div className="mt-4 p-2 rounded-md bg-yellow-900/30 border border-yellow-700/50 text-yellow-400 text-xs flex items-center gap-2">
+                          <Zap className="h-4 w-4"/>
+                          <span>Editing is a premium feature. View only.</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
