@@ -1,9 +1,10 @@
 
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// The SQL migration script to create the necessary tables.
 const SQL_MIGRATION = `
 CREATE TABLE IF NOT EXISTS products (
     id bigserial PRIMARY KEY,
@@ -42,19 +43,25 @@ CREATE TABLE IF NOT EXISTS sales (
 );
 `;
 
-export async function POST(request: Request) {
-  // This is the correct, automatic solution.
-  // It uses the provider_token to authorize a request against the Supabase Management API.
-  // Instead of using an outdated JS library function, it posts the SQL query directly
-  // to the correct API endpoint for running database queries.
+const DEFAULT_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
 
+export async function POST(request: Request) {
   const { project_ref, provider_token } = await request.json();
+  const cookieStore = cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+  // 1. Get the current user from the session
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+  }
 
   if (!project_ref || !provider_token) {
     return NextResponse.json({ error: 'Project reference and provider token are required' }, { status: 400 });
   }
 
   try {
+    // 2. Create the tables in the user's Supabase project via the Management API
     const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/database/query`, {
       method: 'POST',
       headers: {
@@ -64,19 +71,32 @@ export async function POST(request: Request) {
       body: JSON.stringify({ query: SQL_MIGRATION })
     });
 
-    if (response.ok) {
-      // The query was successful. The body is usually an empty array on success.
-      return NextResponse.json({ message: "Tables created successfully!" });
-    } else {
-      // The API returned an error.
+    if (!response.ok) {
       const errorBody = await response.json();
       console.error("Supabase Query API Error:", errorBody);
-      const errorMessage = errorBody.message || `An error occurred with the Supabase Query API. Status: ${response.status}`;
-      return NextResponse.json({ error: errorMessage }, { status: response.status });
+      throw new Error(errorBody.message || `An error occurred with the Supabase Query API. Status: ${response.status}`);
     }
 
+    // 3. If successful, automatically "connect" these tables by adding them to this app's database.
+    const recordsToInsert = DEFAULT_TABLES.map(tableName => ({
+        user_id: user.id,
+        table_name: tableName
+    }));
+
+    const { error: insertError } = await supabase
+        .from('user_connected_tables')
+        .upsert(recordsToInsert, { onConflict: 'user_id, table_name' });
+
+    if (insertError) {
+      // If this fails, the tables are created but won't appear automatically.
+      console.error("Failed to auto-connect default tables for user:", insertError);
+      throw new Error(`Tables were created in your project, but failed to automatically appear in the app. Please connect them manually. Error: ${insertError.message}`);
+    }
+
+    return NextResponse.json({ message: "Tables created and automatically connected successfully!" });
+
   } catch (err: any) {
-    console.error('Error calling Supabase Query API:', err);
-    return NextResponse.json({ error: err.message || 'An unexpected error occurred while creating tables.' }, { status: 500 });
+    console.error('Error in create-tables endpoint:', err);
+    return NextResponse.json({ error: err.message || 'An unexpected error occurred while creating and connecting tables.' }, { status: 500 });
   }
 }
