@@ -27,6 +27,8 @@ const SUPABASE_REGIONS = [
   { value: "us-west-1", label: "US West (N. California)" },
 ];
 
+const EXPECTED_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
+
 export default function SetupWizardPage() {
   const [step, setStep] = useState(1)
   const [step2SubStep, setStep2SubStep] = useState('select');
@@ -51,6 +53,13 @@ export default function SetupWizardPage() {
   const [newProjectRegion, setNewProjectRegion] = useState("us-east-1")
   const [creatingProject, setCreatingProject] = useState(false)
 
+  // State for Step 3: Table Creation & Verification
+  const [isTablesLoading, setIsTablesLoading] = useState(false);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<Record<string, boolean> | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -58,9 +67,11 @@ export default function SetupWizardPage() {
     const savedState = localStorage.getItem('setupState');
     if (savedState) {
       try {
-        const { step: savedStep, openRouterKey: savedOpenRouterKey } = JSON.parse(savedState);
+        const { step: savedStep, openRouterKey: savedOpenRouterKey, providerToken: savedProviderToken, refreshToken: savedRefreshToken } = JSON.parse(savedState);
         setStep(savedStep || 1);
         setOpenRouterKey(savedOpenRouterKey || "");
+        if (savedProviderToken) setProviderToken(savedProviderToken);
+        if (savedRefreshToken) setRefreshToken(savedRefreshToken);
       } catch (e) {
         console.error("Failed to parse setup state:", e)
       }
@@ -125,7 +136,7 @@ export default function SetupWizardPage() {
   }
 
   const handleSupabaseConnect = () => {
-    const stateToSave = { step: 2, openRouterKey };
+    const stateToSave = { step: 2, openRouterKey, providerToken, refreshToken };
     localStorage.setItem('setupState', JSON.stringify(stateToSave));
 
     const redirectUri = window.location.origin + "/app/setup";
@@ -187,23 +198,20 @@ export default function SetupWizardPage() {
       setNewProjectName("");
       setNewDbPassword("");
       
-      // Wait a bit, then refetch projects and select the new one
       setTimeout(() => {
         if(providerToken){
            fetchProjects(providerToken).then(() => {
-             // Find the new project and select it
              const createdProject = supabaseProjects.find(p => p.id === newProject.id);
              if (createdProject) {
                handleProjectSelect(createdProject.ref);
              } else {
-                 // If not found immediately, might need a slightly longer wait
                  setTimeout(() => {
                      if(providerToken) fetchProjects(providerToken);
                  }, 5000)
              }
            });
         }
-      }, 3000); // 3-second delay to allow Supabase to provision
+      }, 3000);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred.");
@@ -251,6 +259,51 @@ export default function SetupWizardPage() {
       setTesting(false);
     }
   }
+
+  const handleCreateTableAndVerify = async () => {
+    if (!selectedProject) {
+        setTablesError("A Supabase project must be selected.");
+        return;
+    }
+    setIsTablesLoading(true);
+    setTablesError(null);
+    setVerificationError(null);
+    setVerificationResult(null);
+
+    try {
+        const createResponse = await fetch('/api/setup/create-tables', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_ref: selectedProject }),
+        });
+        const createResult = await createResponse.json();
+        if (!createResponse.ok) throw new Error(createResult.error || "Table creation failed.");
+
+        // If creation is successful, proceed to verification
+        setIsVerifying(true);
+        const verifyResponse = await fetch('/api/setup/verify-tables', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tableNames: EXPECTED_TABLES, supabaseUrl, supabaseKey }),
+        });
+        const verifyResult = await verifyResponse.json();
+        if (!verifyResponse.ok) throw new Error(verifyResult.error || "Verification failed.");
+        
+        setVerificationResult(verifyResult.verificationResults);
+        const allVerified = Object.values(verifyResult.verificationResults).every(v => v === true);
+        if (allVerified) {
+            setTimeout(() => setStep(4), 1000); // Success, move to next step
+        } else {
+            setVerificationError("Some tables could not be verified. Please check your Supabase project.")
+        }
+
+    } catch (err: any) {
+        setTablesError(err.message);
+    } finally {
+        setIsTablesLoading(false);
+        setIsVerifying(false);
+    }
+  };
 
  const saveSetup = async () => {
     if (!user) return;
@@ -306,13 +359,14 @@ export default function SetupWizardPage() {
   }
 
   const hasInteractedWithSupabase = supabaseUrl || supabaseKey || selectedProject;
+  const allVerified = verificationResult ? Object.values(verificationResult).every(v => v === true) : false;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
         <video autoPlay loop muted playsInline className="absolute z-0 w-full h-full object-cover" src="/setupbg.mp4" />
         <div className="absolute z-10 w-full h-full bg-black/50"></div>
         <div className="w-full max-w-2xl z-20">
-        <div className="flex gap-2 mb-8">{[1, 2, 3, 4].map(s => <div key={s} className={`h-2 flex-1 rounded-full transition-all ${s <= step ? "bg-white" : "bg-border/50"}`} />)}</div>
+        <div className="flex gap-2 mb-8">{[1, 2, 3, 4, 5].map(s => <div key={s} className={`h-2 flex-1 rounded-full transition-all ${s <= step ? "bg-white" : "bg-border/50"}`} />)}</div>
 
         {error && <Alert variant="destructive" className="mb-4"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
         {success && <Alert className="mb-4 border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>{success}</AlertDescription></Alert>}
@@ -399,6 +453,41 @@ export default function SetupWizardPage() {
 
         {step === 3 && (
              <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+                <CardHeader><CardTitle>Create & Verify Database Tables</CardTitle><CardDescription>This will create the necessary tables in your selected Supabase project.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                    <Button onClick={handleCreateTableAndVerify} disabled={isTablesLoading || isVerifying || allVerified} className="w-full bg-white text-black hover:bg-gray-200">
+                        {(isTablesLoading || isVerifying) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isTablesLoading && !isVerifying && 'Creating Tables...'}
+                        {isVerifying && 'Verifying...'}
+                        {!isTablesLoading && !isVerifying && (allVerified ? 'Verified!' : 'Create and Verify Tables')}
+                    </Button>
+
+                    {tablesError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{tablesError}</AlertDescription></Alert>}
+                    {verificationError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{verificationError}</AlertDescription></Alert>}
+
+                    {verificationResult && (
+                        <div className="space-y-2 pt-4">
+                             <p className="text-sm font-medium">Verification Status:</p>
+                             <ul className="space-y-1">
+                                {EXPECTED_TABLES.map(name => (
+                                    <li key={name} className={`flex items-center text-sm p-2 rounded-md ${verificationResult[name] ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
+                                        {verificationResult[name] ? <CheckCircle2 size={16} className="mr-2"/> : <AlertCircle size={16} className="mr-2"/>} {name}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-4">
+                        <Button variant="outline" onClick={() => setStep(2)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
+                        <Button onClick={() => setStep(4)} disabled={!allVerified} className="flex-1 bg-white text-black hover:bg-gray-200">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button>
+                    </div>
+                </CardContent>
+           </Card>
+        )}
+
+        {step === 4 && (
+             <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
              <CardHeader><CardTitle>Database Permissions</CardTitle><CardDescription>Control what your AI can do. Skipped if no database is linked.</CardDescription></CardHeader>
              <CardContent className="space-y-6">
                <div className="space-y-4">
@@ -406,12 +495,12 @@ export default function SetupWizardPage() {
                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-white/5"><Checkbox id="can_insert" checked={permissions.can_insert} onCheckedChange={c => setPermissions({ ...permissions, can_insert: !!c })} /><div className="flex-1"><label htmlFor="can_insert" className="cursor-pointer">Insert new rows</label><p className="text-sm text-muted-foreground">AI can add data.</p></div></div>
                </div>
                <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Read and Insert are recommended.</AlertDescription></Alert>
-               <div className="flex gap-3"><Button variant="outline" onClick={() => setStep(2)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button><Button onClick={() => setStep(4)} disabled={!permissions.can_read || !permissions.can_insert} className="flex-1 bg-white text-black hover:bg-gray-200">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button></div>
+               <div className="flex gap-3"><Button variant="outline" onClick={() => setStep(3)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button><Button onClick={() => setStep(5)} disabled={!permissions.can_read || !permissions.can_insert} className="flex-1 bg-white text-black hover:bg-gray-200">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button></div>
              </CardContent>
            </Card>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
             <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
             <CardHeader><CardTitle>You're All Set!</CardTitle><CardDescription>Your instance is ready to create chatbots.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
