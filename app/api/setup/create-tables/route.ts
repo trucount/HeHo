@@ -56,12 +56,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
   }
 
+  // 2. Check if the default tables are already connected for this user.
+  const { data: existingTables, error: checkError } = await supabase
+    .from('user_connected_tables')
+    .select('table_name')
+    .eq('user_id', user.id)
+    .in('table_name', DEFAULT_TABLES);
+
+  if (checkError) {
+      console.error("Error checking for existing tables:", checkError);
+      // Proceed, but log the error. The upsert will handle conflicts anyway.
+  } else if (existingTables && existingTables.length === DEFAULT_TABLES.length) {
+      // If all tables are already connected, do nothing.
+      return NextResponse.json({ message: "Default tables already exist and are connected." });
+  }
+
   if (!project_ref || !provider_token) {
-    return NextResponse.json({ error: 'Project reference and provider token are required' }, { status: 400 });
+    return NextResponse.json({ error: 'Project reference and provider token are required to proceed.' }, { status: 400 });
   }
 
   try {
-    // 2. Create the tables in the user's Supabase project via the Management API
+    // 3. Create the tables in the user's Supabase project via the Management API
     const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/database/query`, {
       method: 'POST',
       headers: {
@@ -77,7 +92,7 @@ export async function POST(request: Request) {
       throw new Error(errorBody.message || `An error occurred with the Supabase Query API. Status: ${response.status}`);
     }
 
-    // 3. If successful, automatically "connect" these tables by adding them to this app's database.
+    // 4. If successful, automatically "connect" these tables by adding them to this app's database.
     const recordsToInsert = DEFAULT_TABLES.map(tableName => ({
         user_id: user.id,
         table_name: tableName
@@ -88,7 +103,6 @@ export async function POST(request: Request) {
         .upsert(recordsToInsert, { onConflict: 'user_id, table_name' });
 
     if (insertError) {
-      // If this fails, the tables are created but won't appear automatically.
       console.error("Failed to auto-connect default tables for user:", insertError);
       throw new Error(`Tables were created in your project, but failed to automatically appear in the app. Please connect them manually. Error: ${insertError.message}`);
     }
