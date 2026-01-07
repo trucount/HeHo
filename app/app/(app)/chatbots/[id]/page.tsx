@@ -212,12 +212,12 @@ export default function ChatbotPage() {
             </div>
         </div>
         <div className="flex items-center gap-2">
-            <Link href={`/app/chatbots/${chatbot.id}/settings`}>
+            <Link href={`/app/chatbots/${chatbot.id}/settings?tab=config`}>
                 <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
                     <Settings className="h-5 w-5" />
                 </Button>
             </Link>
-            <Link href={`/app/chatbots/${chatbot.id}/deploy`}>
+            <Link href={`/app/chatbots/${chatbot.id}/settings?tab=deploy`}>
                 <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
                     <Rocket className="h-5 w-5" />
                 </Button>

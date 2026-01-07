@@ -1,17 +1,23 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useRouter, useParams } from "next/navigation"
-import { Loader2, AlertCircle, ArrowLeft, Database } from "lucide-react"
+import { useRouter, useParams, useSearchParams } from "next/navigation"
+import { Loader2, AlertCircle, ArrowLeft, Database, Copy, Check, Share2, Globe, Clock, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useChatbotShare } from '@/hooks/useChatbotShare'
+import { Badge } from '@/components/ui/badge'
+import { DateTimePicker } from '@/components/ui/datetime-picker'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { formatDistanceToNow } from 'date-fns'
 
 const MODELS = [
   { id: "allenai/olmo-3.1-32b-think:free", name: "AllenAI: Olmo 3.1 32B Think" },
@@ -72,7 +78,9 @@ interface ConnectedTable {
   table_name: string
 }
 
-export default function ChatbotSettingsPage() {
+function ChatbotSettingsPage() {
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "config")
   const [chatbot, setChatbot] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -92,6 +100,28 @@ export default function ChatbotSettingsPage() {
   const params = useParams()
   const supabase = createClient()
   const chatbotId = params.id as string
+
+  const { share, loading: shareLoading, createShareLink, deleteShareLink } = useChatbotShare(chatbotId)
+  
+  const [deploying, setDeploying] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [expires, setExpires] = useState(false)
+  const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined)
+  const [countdown, setCountdown] = useState('')
+
+  const deployUrl = share ? `${window.location.origin}/deploy/${share.share_token}` : ''
+
+  useEffect(() => {
+    if (share?.expires_at) {
+      const updateCountdown = () => {
+        const distance = formatDistanceToNow(new Date(share.expires_at!), { addSuffix: true })
+        setCountdown(`Expires ${distance}`)
+      }
+      updateCountdown()
+      const interval = setInterval(updateCountdown, 60000) // Update every minute
+      return () => clearInterval(interval)
+    }
+  }, [share])
 
   useEffect(() => {
     const loadData = async () => {
@@ -167,11 +197,37 @@ export default function ChatbotSettingsPage() {
       setSaving(false)
     }
   }
+
+  const handleDeploy = async () => {
+    setDeploying(true)
+    await createShareLink(expires ? expiryDate! : null)
+    setDeploying(false)
+  }
+
+  const handleUndeploy = async () => {
+    setDeploying(true)
+    await deleteShareLink()
+    setDeploying(false)
+  }
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
   
   const selectedTheme = THEMES.find((t) => t.value === formData.theme) || THEMES[0];
+  const embedCode = `<!-- HeHo Chatbot Widget -->
+<div id="heho-chatbot-${chatbotId}" style="height: 600px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+<script src="${window.location.origin}/embed.js"></script>
+<script>
+  HeHoChatbot.embed('${deployUrl}', 'heho-chatbot-${chatbotId}');
+</script>`
+
+  const iframeCode = `<iframe src="${deployUrl}" style="width: 100%; height: 600px; border: none; border-radius: 8px;" allow="microphone; camera"></iframe>`
 
 
-  if (loading) {
+  if (loading || shareLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -189,7 +245,7 @@ export default function ChatbotSettingsPage() {
 
         <h1 className="text-4xl font-bold text-foreground mb-8">Chatbot Settings</h1>
 
-        <Tabs defaultValue="config" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-card/50 border border-border/50">
             <TabsTrigger value="config">Configuration</TabsTrigger>
             <TabsTrigger value="theme">Theme</TabsTrigger>
@@ -384,20 +440,132 @@ export default function ChatbotSettingsPage() {
           </TabsContent>
 
           <TabsContent value="deploy">
-            <Card className="border-border/50 bg-card/50">
-              <CardHeader>
-                <CardTitle>Deployment</CardTitle>
-                <CardDescription>Manage your chatbot deployment</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href={`/app/chatbots/${chatbotId}/deploy`}>
-                  <Button className="w-full bg-primary hover:bg-primary/90">Go to Deploy Settings</Button>
-                </Link>
-              </CardContent>
-            </Card>
+             {!share ? (
+          <Card className='border-border/50 bg-card/50 mb-8'>
+            <CardHeader>
+              <CardTitle>Deploy Your Chatbot</CardTitle>
+              <CardDescription>Make your chatbot publicly accessible.</CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-6'>
+              <Alert>
+                <Globe className='h-4 w-4' />
+                <AlertDescription className='text-foreground'>
+                  Deploying will generate a public link. Anyone with this link can interact with your chatbot.
+                </AlertDescription>
+              </Alert>
+              <div className='flex items-center space-x-2'>
+                <Switch id='expires' checked={expires} onCheckedChange={setExpires} />
+                <Label htmlFor='expires'>Set an expiration date</Label>
+              </div>
+              {expires && (
+                <DateTimePicker date={expiryDate} setDate={setExpiryDate} />
+              )}
+              <Button
+                onClick={handleDeploy}
+                disabled={deploying || (expires && !expiryDate)}
+                className='w-full bg-black hover:bg-gray-900 text-white border border-white/20'
+              >
+                {deploying ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Globe className='mr-2 h-4 w-4' />}
+                Deploy Chatbot
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-8'>
+              <Card className='border-green-600/50 bg-green-600/10'>
+                <CardHeader>
+                  <CardTitle className='text-green-400'>Deployment Status</CardTitle>
+                  {share.expires_at && <p className='text-sm text-green-300 pt-2'>{countdown}</p>}
+                </CardHeader>
+                <CardContent>
+                  <Badge className='bg-green-600 text-white mb-4'>Active</Badge>
+                  <p className='text-sm text-muted-foreground mb-4'>
+                    Your chatbot is live. Anyone with the link can access it.
+                  </p>
+                  <Button
+                    variant='outline'
+                    onClick={handleUndeploy}
+                    disabled={deploying}
+                    className='w-full border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent'
+                  >
+                    {deploying ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : 'Undeploy Chatbot'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className='border-border/50 bg-card/50'>
+                <CardHeader>
+                  <CardTitle>Public URL</CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  <div className='flex gap-2'>
+                    <Input value={deployUrl} readOnly className='bg-background/50 border-border/50 text-foreground text-sm' />
+                    <Button onClick={() => copyToClipboard(deployUrl, 'url')} className='bg-white hover:bg-gray-200 text-black px-3'>
+                      {copied === 'url' ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
+                    </Button>
+                  </div>
+                  <Link href={deployUrl} target='_blank'>
+                    <Button className='w-full border-border/50 text-foreground hover:bg-white/10 bg-transparent'>
+                      <Share2 className='mr-2 h-4 w-4' />
+                      Open Public Link
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Tabs defaultValue='embed' className='w-full'>
+               <TabsList className="grid w-full grid-cols-2 bg-card/50 border border-border/50">
+                <TabsTrigger value="embed">Embed Code</TabsTrigger>
+                <TabsTrigger value="iframe">iframe</TabsTrigger>
+              </TabsList>
+              <TabsContent value='embed'>
+                <Card className='border-border/50 bg-card/50'>
+                  <CardHeader>
+                      <CardTitle>Embed Widget</CardTitle>
+                      <CardDescription>Add this code to your website to embed the chatbot widget</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <div className='bg-background/50 border border-border/50 rounded-lg p-4 overflow-x-auto'>
+                      <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words'>{embedCode}</pre>
+                    </div>
+                    <Button onClick={() => copyToClipboard(embedCode, 'embed')} className='w-full bg-white hover:bg-gray-200 text-black'>
+                      {copied === 'embed' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}Copy Embed Code
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value='iframe'>
+                <Card className='border-border/50 bg-card/50'>
+                   <CardHeader>
+                    <CardTitle>iframe Embed</CardTitle>
+                    <CardDescription>Embed your chatbot using an iframe tag</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <div className='bg-background/50 border border-border/50 rounded-lg p-4 overflow-x-auto'>
+                      <pre className='text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words'>{iframeCode}</pre>
+                    </div>
+                    <Button onClick={() => copyToClipboard(iframeCode, 'iframe')} className='w-full bg-white hover:bg-gray-200 text-black'>
+                      {copied === 'iframe' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}Copy iframe Code
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
           </TabsContent>
         </Tabs>
       </div>
     </div>
+  )
+}
+
+export default function ChatbotSettingsPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatbotSettingsPage />
+    </Suspense>
   )
 }

@@ -161,7 +161,7 @@ export default function ChatbotsPage() {
                         Chat
                       </Button>
                     </Link>
-                    <Link href={`/app/chatbots/${chatbot.id}/deploy`} className="flex-1">
+                    <Link href={`/app/chatbots/${chatbot.id}/settings?tab=deploy`} className="flex-1">
                       <Button
                         variant="outline"
                         className="w-full border-border/50 text-foreground hover:bg-white/10 bg-transparent"
@@ -171,7 +171,7 @@ export default function ChatbotsPage() {
                       </Button>
                     </Link>
                     <div className="flex gap-2">
-                      <Link href={`/app/chatbots/${chatbot.id}/settings`}>
+                      <Link href={`/app/chatbots/${chatbot.id}/settings?tab=config`}>
                         <Button
                           variant="outline"
                           className="border-border/50 text-foreground hover:bg-white/10 bg-transparent px-3"
