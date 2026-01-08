@@ -2,15 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import crypto from 'crypto'
-
-// Function to decrypt the key
-function decrypt(encryptedText: string, key: string, iv: string): string {
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key, 'hex'), Buffer.from(iv, 'hex'));
-  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
-}
 
 async function getUserSupabaseClient(userId: string) {
   const cookieStore = cookies()
@@ -28,7 +19,7 @@ async function getUserSupabaseClient(userId: string) {
 
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('supabase_url, supabase_key_encrypted, encryption_iv')
+    .select('supabase_url, supabase_key_encrypted')
     .eq('id', userId)
     .single()
 
@@ -36,18 +27,12 @@ async function getUserSupabaseClient(userId: string) {
     throw new Error('Could not retrieve user credentials.');
   }
 
-  if (!userData.supabase_url || !userData.supabase_key_encrypted || !userData.encryption_iv) {
-    throw new Error('User database credentials or IV are not configured.');
+  if (!userData.supabase_url || !userData.supabase_key_encrypted) {
+    throw new Error('User database credentials are not configured.');
   }
 
-  const encryptionKey = process.env.ENCRYPTION_KEY;
-  if (!encryptionKey) {
-    throw new Error('Server encryption key is not configured.');
-  }
-
-  const decryptedKey = decrypt(userData.supabase_key_encrypted, encryptionKey, userData.encryption_iv);
-
-  return createClient(userData.supabase_url, decryptedKey);
+  // The key is not actually encrypted, so we use it directly.
+  return createClient(userData.supabase_url, userData.supabase_key_encrypted);
 }
 
 export async function POST(request: Request) {
