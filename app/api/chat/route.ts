@@ -1,3 +1,4 @@
+
 import { createClient as createSupabaseAdminClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { type NextRequest, NextResponse } from 'next/server'
@@ -26,6 +27,20 @@ const POPULAR_MODELS = [
   "google/gemma-3n-e4b-it:free",
 ]
 
+async function getTableSchema(client: any, tableName: string) {
+  // This is a simplified example. In a real-world scenario, you'd want more robust error handling
+  // and potentially a more specific query to get only the information you need.
+  const { data, error } = await client.from('information_schema.columns')
+    .select('column_name, data_type')
+    .eq('table_name', tableName);
+  if (error) {
+    console.error(`Error fetching schema for table ${tableName}:`, error);
+    return null;
+  }
+  return data;
+}
+
+
 export async function POST(request: NextRequest) {
   try {
     const { message, history, isPublic, shareToken, chatbotId } =
@@ -44,7 +59,6 @@ export async function POST(request: NextRequest) {
 
     // ---------------- PUBLIC/SHARED CHAT ----------------
     if (isPublic) {
-        // Public chat now uses the chatbotId directly
         if (!chatbotId) return NextResponse.json({ error: 'Chatbot ID is required' }, { status: 400 });
 
         const { data: chatbotData } = await supabaseAdmin
@@ -55,9 +69,6 @@ export async function POST(request: NextRequest) {
 
         if (!chatbotData) return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 });
         
-        // In public mode, we can't verify ownership easily without a user session.
-        // We will proceed, assuming if you have the chatbotId, you have access.
-        // The user object is nested inside chatbotData.
         chatbot = chatbotData;
         userId = chatbotData.users.id;
     }
@@ -81,7 +92,6 @@ export async function POST(request: NextRequest) {
 
     if (!userId) return NextResponse.json({ error: 'Could not identify user' }, { status: 500 });
 
-    // The user data including keys is now nested in the chatbot object
     const userData = chatbot.users;
     if (!userData?.openrouter_key_encrypted)
       return NextResponse.json({ error: 'API key not configured.' }, { status: 400 });
@@ -93,23 +103,34 @@ export async function POST(request: NextRequest) {
     if (chatbot.tone) systemPrompt += ` Maintain a ${chatbot.tone} tone.`
 
     // ---------------- TABLE DATA INJECTION ----------------
-    if (chatbot.data_table_name && userData.supabase_url && userData.supabase_key_encrypted) {
-        try {
-            const userSupabase = createClient(userData.supabase_url, userData.supabase_key_encrypted);
-            const { data: tableData, error: tableError } = await userSupabase
-                .from(chatbot.data_table_name)
-                .select('*');
+    if (userData.supabase_url && userData.supabase_key_encrypted) {
+      const userSupabase = createClient(userData.supabase_url, userData.supabase_key_encrypted);
+      for (let i = 1; i <= 3; i++) {
+        const tableName = chatbot[`data_table_${i}`];
+        const canRead = chatbot[`data_table_${i}_read`];
+        const canWrite = chatbot[`data_table_${i}_write`];
 
+        if (tableName) {
+          if (canRead) {
+            const { data: tableData, error: tableError } = await userSupabase.from(tableName).select('*');
             if (tableError) {
-                console.error(`Error fetching from user table '${chatbot.data_table_name}':`, tableError.message);
-                systemPrompt += `\n\nNote: There was an error trying to access the connected database table: ${tableError.message}`;
+              systemPrompt += `\n\nNote: Error accessing table '${tableName}': ${tableError.message}`;
             } else if (tableData) {
-                const tableContext = JSON.stringify(tableData, null, 2);
-                systemPrompt += `\n\nUse the following data from the '${chatbot.data_table_name}' table to help answer user questions. Only use this data if the user's question is relevant to it:\n${tableContext}`;
+              systemPrompt += `\n\nHere is the data from table '${tableName}' (you have read-only access):\n${JSON.stringify(tableData, null, 2)}`;
             }
-        } catch (e: any) {
-            console.error('Failed to connect to user Supabase or fetch data:', e.message);
+          }
+          if (canWrite) {
+             const schema = await getTableSchema(userSupabase, tableName);
+             if(schema) {
+                systemPrompt += `\n\nYou have write access to the table '${tableName}'. You can insert data into it.`;
+                systemPrompt += `\nHere is the schema for '${tableName}':\n${JSON.stringify(schema, null, 2)}`;
+                systemPrompt += `\nIf you need to insert data, ask the user for the values of the columns.`;
+             } else {
+                systemPrompt += `\n\nNote: Could not retrieve schema for table '${tableName}'. Write operations may not be possible.`;
+             }
+          }
         }
+      }
     }
 
     // ---------------- AI CALL ----------------

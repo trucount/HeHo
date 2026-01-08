@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { AlertCircle, Loader2, ArrowRight, Sparkles, Database } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import Link from 'next/link'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const POPULAR_MODELS = [
     { id: "allenai/olmo-3.1-32b-think:free", name: "AllenAI: Olmo 3.1 32B Think" },
@@ -77,11 +78,6 @@ const THEMES = [
 
 const DEFAULT_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
 
-interface ConnectedTable {
-  id: number
-  table_name: string
-}
-
 export default function CreateChatbotPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -94,7 +90,15 @@ export default function CreateChatbotPage() {
     tone: 'professional',
     model: '',
     theme: 'sky',
-    data_table_name: '',
+    data_table_1: '',
+    data_table_1_read: false,
+    data_table_1_write: false,
+    data_table_2: '',
+    data_table_2_read: false,
+    data_table_2_write: false,
+    data_table_3: '',
+    data_table_3_read: false,
+    data_table_3_write: false,
   })
   const [error, setError] = useState<string | null>(null)
   const [chatbotCount, setChatbotCount] = useState(0)
@@ -111,14 +115,12 @@ export default function CreateChatbotPage() {
       }
       setUser(currentUser);
 
-      // Fetch chatbot count
       const { count } = await supabase
         .from('chatbots')
         .select('*', { count: 'exact' })
         .eq('user_id', currentUser.id);
       setChatbotCount(count || 0);
       
-      // Fetch connected tables
       const { data: tablesData, error: tablesError } = await supabase
         .from('user_connected_tables')
         .select('table_name')
@@ -205,7 +207,15 @@ export default function CreateChatbotPage() {
           tone: formData.tone,
           model: formData.model,
           theme: formData.theme,
-          data_table_name: formData.data_table_name === '_none_' ? null : formData.data_table_name,
+          data_table_1: formData.data_table_1 === '_none_' ? null : formData.data_table_1,
+          data_table_1_read: formData.data_table_1_read,
+          data_table_1_write: formData.data_table_1_write,
+          data_table_2: formData.data_table_2 === '_none_' ? null : formData.data_table_2,
+          data_table_2_read: formData.data_table_2_read,
+          data_table_2_write: formData.data_table_2_write,
+          data_table_3: formData.data_table_3 === '_none_' ? null : formData.data_table_3,
+          data_table_3_read: formData.data_table_3_read,
+          data_table_3_write: formData.data_table_3_write,
           status: 'active',
         })
         .select()
@@ -228,6 +238,50 @@ export default function CreateChatbotPage() {
       </div>
     )
   }
+
+  const renderDataSourceSelect = (index: 1 | 2 | 3) => (
+    <div className='space-y-2'>
+      <label className='block text-sm font-medium text-foreground mb-2'>Data Source {index} (Optional)</label>
+      <Select
+        value={formData[`data_table_${index}`]}
+        onValueChange={(value) => setFormData({ ...formData, [`data_table_${index}`]: value })}
+      >
+        <SelectTrigger className='bg-background/50 border-border/50'>
+          <SelectValue placeholder='Select a table' />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value='_none_'>None</SelectItem>
+          {allDataSources.map((tableName) => (
+            <SelectItem key={tableName} value={tableName}>
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                {tableName}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className='flex items-center space-x-4'>
+        <div className='flex items-center space-x-2'>
+          <Checkbox
+            id={`read-${index}`}
+            checked={formData[`data_table_${index}_read`]}
+            onCheckedChange={(checked) => setFormData({ ...formData, [`data_table_${index}_read`]: !!checked })}
+          />
+          <label htmlFor={`read-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Read</label>
+        </div>
+        <div className='flex items-center space-x-2'>
+           <Checkbox
+            id={`write-${index}`}
+            checked={formData[`data_table_${index}_write`]}
+            onCheckedChange={(checked) => setFormData({ ...formData, [`data_table_${index}_write`]: !!checked })}
+          />
+          <label htmlFor={`write-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Write</label>
+        </div>
+      </div>
+    </div>
+  )
+
 
   return (
     <div className='min-h-screen bg-background'>
@@ -323,30 +377,14 @@ export default function CreateChatbotPage() {
                     {formData.description.length}/5000 characters (min 200 required)
                   </p>
                 </div>
+                
+                {renderDataSourceSelect(1)}
+                {renderDataSourceSelect(2)}
+                {renderDataSourceSelect(3)}
 
-                {/* Data Source */}
-                <div>
-                  <label className='block text-sm font-medium text-foreground mb-2'>Data Source (Optional)</label>
-                  <Select value={formData.data_table_name} onValueChange={(value) => setFormData({ ...formData, data_item: value })}>
-                    <SelectTrigger className='bg-background/50 border-border/50'>
-                      <SelectValue placeholder='Select a table' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='_none_'>None</SelectItem>
-                      {allDataSources.map((tableName) => (
-                        <SelectItem key={tableName} value={tableName}>
-                          <div className="flex items-center gap-2">
-                            <Database className="h-4 w-4" />
-                            {tableName}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                   {allDataSources.length === 0 && (
-                    <p className='text-xs text-muted-foreground mt-2'>No database tables found. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
-                  )}
-                </div>
+                {allDataSources.length === 0 && (
+                  <p className='text-xs text-muted-foreground mt-2'>No database tables found. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
+                )}
 
                 {/* Tone */}
                 <div>
