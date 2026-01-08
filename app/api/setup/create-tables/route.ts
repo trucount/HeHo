@@ -43,52 +43,60 @@ CREATE TABLE IF NOT EXISTS sales (
 );
 `;
 
+const DEFAULT_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
+
 export async function POST(request: Request) {
   const { project_ref, provider_token } = await request.json();
   const cookieStore = cookies();
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
+  // 1. Get the current user from the session
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
   }
 
   if (!project_ref || !provider_token) {
-    return NextResponse.json({ error: 'Project reference and provider token are required.' }, { status: 400 });
+    return NextResponse.json({ error: 'Project reference and provider token are required' }, { status: 400 });
   }
 
   try {
-    // Use the newer /sql endpoint instead of the deprecated /database/query
-    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/sql`, {
+    // 2. Create the tables in the user's Supabase project via the Management API
+    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/database/query`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${provider_token}`,
         'Content-Type': 'application/json'
       },
-      // The new endpoint expects the key to be 'sql'
-      body: JSON.stringify({ sql: SQL_MIGRATION })
+      body: JSON.stringify({ query: SQL_MIGRATION })
     });
 
-    // Robust error handling for the Supabase Management API response
     if (!response.ok) {
-      const errorText = await response.text();
-      try {
-        // Try to parse as JSON first
-        const errorBody = JSON.parse(errorText);
-        console.error("Supabase API JSON Error:", errorBody);
-        throw new Error(errorBody.message || `An error occurred with the Supabase API. Status: ${response.status}`);
-      } catch (e) {
-        // If parsing fails, it's not a JSON error. Use the raw text.
-        console.error("Supabase API Non-JSON Error:", errorText);
-        throw new Error(errorText || `An error occurred with the Supabase API. Status: ${response.status}`);
-      }
+      const errorBody = await response.json();
+      console.error("Supabase Query API Error:", errorBody);
+      throw new Error(errorBody.message || `An error occurred with the Supabase Query API. Status: ${response.status}`);
     }
-    
-    // On success, we don't need to parse the body. Just confirm success.
-    return NextResponse.json({ message: "Tables created successfully in your Supabase project!" });
+
+    // 3. If successful, automatically "connect" these tables by adding them to this app's database.
+    const recordsToInsert = DEFAULT_TABLES.map(tableName => ({
+        user_id: user.id,
+        table_name: tableName
+    }));
+
+    const { error: insertError } = await supabase
+        .from('user_connected_tables')
+        .upsert(recordsToInsert, { onConflict: 'user_id, table_name' });
+
+    if (insertError) {
+      // If this fails, the tables are created but won't appear automatically.
+      console.error("Failed to auto-connect default tables for user:", insertError);
+      throw new Error(`Tables were created in your project, but failed to automatically appear in the app. Please connect them manually. Error: ${insertError.message}`);
+    }
+
+    return NextResponse.json({ message: "Tables created and automatically connected successfully!" });
 
   } catch (err: any) {
     console.error('Error in create-tables endpoint:', err);
-    return NextResponse.json({ error: err.message || 'An unexpected error occurred while creating tables.' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'An unexpected error occurred while creating and connecting tables.' }, { status: 500 });
   }
 }
