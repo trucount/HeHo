@@ -26,18 +26,42 @@ const POPULAR_MODELS = [
   'google/gemma-3n-e4b-it:free',
 ]
 
-async function getTableSchema(client: any, tableName: string) {
-  const { data, error } = await client
-    .from('information_schema.columns')
-    .select('column_name, data_type')
-    .eq('table_name', tableName)
+async function getTableSchema(supabaseUrl: string, supabaseKey: string, tableName: string): Promise<any[] | null> {
+  try {
+    // Fetch the OpenAPI spec from the user's Supabase project
+    const response = await fetch(`${supabaseUrl}/rest/v1/?apikey=${supabaseKey}`)
+    if (!response.ok) {
+      console.error(`Error fetching OpenAPI spec: ${response.statusText}`)
+      return null
+    }
+    const openapiSpec = await response.json()
 
-  if (error) {
-    console.error(`Error fetching schema for table ${tableName}:`, error)
+    // Find the table definition in the spec
+    const definition = openapiSpec.definitions[tableName]
+    if (!definition || !definition.properties) {
+      console.error(`Table '${tableName}' not found in OpenAPI spec.`)
+      return null
+    }
+
+    // Exclude read-only or managed columns that shouldn't be set on insert
+    const excludedColumns = ['id', 'created_at']
+
+    // Map the properties to the format the AI expects
+    const schema = Object.keys(definition.properties)
+      .filter(columnName => !excludedColumns.includes(columnName))
+      .map(columnName => {
+        const prop = definition.properties[columnName]
+        return {
+          column_name: columnName,
+          data_type: prop.format || prop.type,
+        }
+      })
+
+    return schema
+  } catch (error) {
+    console.error(`Error parsing OpenAPI spec for table ${tableName}:`, error)
     return null
   }
-
-  return data
 }
 
 export async function POST(request: NextRequest) {
@@ -177,14 +201,14 @@ export async function POST(request: NextRequest) {
         }
 
        if (canWrite) {
-            const schema = await getTableSchema(userSupabase, tableName)
+            const schema = await getTableSchema(userData.supabase_url, userData.supabase_key_encrypted, tableName)
             if (schema) {
                 systemPrompt += `\\n\\n**CRITICAL, NON-NEGOTIABLE PROTOCOL: DATABASE WRITE FOR '${tableName}'**`
                 systemPrompt += `\\nYOU ARE A DATA ENTRY BOT. When the user wants to add data (e.g., 'place an order', 'add a lead', 'create a record'), your ONLY JOB is to populate the '${tableName}' table.`
                 systemPrompt += `\\n**DO NOT** refuse, apologize, or claim you cannot perform the action. **DO NOT** suggest other methods like a checkout page. You MUST follow this protocol.`
-                systemPrompt += `\\n**Table Schema:**\\n${JSON.stringify(schema, null, 2)}`
+                systemPrompt += `\\n**Table Schema For Insert:**\\n${JSON.stringify(schema, null, 2)}`
                 systemPrompt += `\\n**Mandatory Protocol Steps:**`
-                systemPrompt += `\\n1. **GATHER:** Ask the user for the value of EVERY column in the schema. Do not skip any.`
+                systemPrompt += `\\n1. **GATHER:** Ask the user for the value of EVERY column in the provided schema. Do not skip any.`
                 systemPrompt += `\\n2. **VERIFY:** Display all the gathered information back to the user and ask for explicit confirmation. Say, "Should I execute this action?" or a similar direct question.`
                 systemPrompt += `\\n3. **EXECUTE:** AFTER the user confirms, your NEXT AND ONLY response MUST be the JSON command below. Nothing else.`
                 systemPrompt += `\\n**Command Format:** \\\`[ADD_DATA]{"tableName": "${tableName}", "data": { ...column_data... }}\\\``
@@ -264,10 +288,10 @@ export async function POST(request: NextRequest) {
         const addDataResult = await addDataResponse.json()
 
         if (addDataResponse.ok) {
-          reply = `I have successfully added the data to the ${tableName} table.`
+          reply = `Done. I\'ve added the new record to the ${tableName} table.`
           dbWriteOccurred = true
         } else {
-          reply = `I tried to add the data, but an error occurred: ${addDataResult.error}`
+          reply = `I ran into a problem trying to save that: ${addDataResult.error}`
         }
       } catch (e: any) {
         console.error('[ADD_DATA] Error:', e)
