@@ -58,23 +58,33 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/database/query`, {
+    // Use the newer /sql endpoint instead of the deprecated /database/query
+    const response = await fetch(`https://api.supabase.com/v1/projects/${project_ref}/sql`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${provider_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ query: SQL_MIGRATION })
+      // The new endpoint expects the key to be 'sql'
+      body: JSON.stringify({ sql: SQL_MIGRATION })
     });
 
+    // Robust error handling for the Supabase Management API response
     if (!response.ok) {
-      const errorBody = await response.json();
-      console.error("Supabase Query API Error:", errorBody);
-      throw new Error(errorBody.message || `An error occurred with the Supabase Query API. Status: ${response.status}`);
+      const errorText = await response.text();
+      try {
+        // Try to parse as JSON first
+        const errorBody = JSON.parse(errorText);
+        console.error("Supabase API JSON Error:", errorBody);
+        throw new Error(errorBody.message || `An error occurred with the Supabase API. Status: ${response.status}`);
+      } catch (e) {
+        // If parsing fails, it's not a JSON error. Use the raw text.
+        console.error("Supabase API Non-JSON Error:", errorText);
+        throw new Error(errorText || `An error occurred with the Supabase API. Status: ${response.status}`);
+      }
     }
     
-    // The logic for saving to 'user_connected_tables' has been removed as requested.
-
+    // On success, we don't need to parse the body. Just confirm success.
     return NextResponse.json({ message: "Tables created successfully in your Supabase project!" });
 
   } catch (err: any) {
