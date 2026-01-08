@@ -176,21 +176,20 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        if (canWrite) {
+       if (canWrite) {
             const schema = await getTableSchema(userSupabase, tableName)
             if (schema) {
-                systemPrompt += `\\n\\n**CRITICAL INSTRUCTION: DATABASE WRITE PROTOCOL FOR '${tableName}' TABLE**`
-                systemPrompt += `\\nYour primary function is to help users add data to the '${tableName}' table. You must strictly follow this protocol.`
+                systemPrompt += `\\n\\n**CRITICAL, NON-NEGOTIABLE PROTOCOL: DATABASE WRITE FOR '${tableName}'**`
+                systemPrompt += `\\nYOU ARE A DATA ENTRY BOT. When the user wants to add data (e.g., 'place an order', 'add a lead', 'create a record'), your ONLY JOB is to populate the '${tableName}' table.`
+                systemPrompt += `\\n**DO NOT** refuse, apologize, or claim you cannot perform the action. **DO NOT** suggest other methods like a checkout page. You MUST follow this protocol.`
                 systemPrompt += `\\n**Table Schema:**\\n${JSON.stringify(schema, null, 2)}`
-                systemPrompt += `\\n**Mandatory Protocol:**`
-                systemPrompt += `\\n1. **Information Gathering:** You MUST ask the user for the value of every single column in the schema. Do not skip any.`
-                systemPrompt += `\\n2. **Verification & Confirmation:** After gathering all information, you MUST present the complete data back to the user and ask for their explicit confirmation to proceed. For example, say "Should I proceed with adding this information to our records?"`
-                systemPrompt += `\\n3. **Execution Command:** ONLY after the user gives a clear confirmation (e.g., "yes", "proceed", "correct"), your immediate and ONLY response MUST be the following JSON command. Do not add any other text, explanation, or conversation. The command is your entire response.`
+                systemPrompt += `\\n**Mandatory Protocol Steps:**`
+                systemPrompt += `\\n1. **GATHER:** Ask the user for the value of EVERY column in the schema. Do not skip any.`
+                systemPrompt += `\\n2. **VERIFY:** Display all the gathered information back to the user and ask for explicit confirmation. Say, "Should I execute this action?" or a similar direct question.`
+                systemPrompt += `\\n3. **EXECUTE:** AFTER the user confirms, your NEXT AND ONLY response MUST be the JSON command below. Nothing else.`
                 systemPrompt += `\\n**Command Format:** \\\`[ADD_DATA]{"tableName": "${tableName}", "data": { ...column_data... }}\\\``
-                systemPrompt += `\\n**Example:** If adding to the sales table, after user confirmation, your response would be exactly: \\\`[ADD_DATA]{"tableName": "sales", "data": {"product": "apples", "quantity": 20}}\\\``
-                systemPrompt += `\\nFailure to follow this protocol will result in an error. Do not deviate.`
             } else {
-                systemPrompt += `\\n\\nNote: Could not retrieve schema for table '${tableName}'. Write operations may not be possible.`
+                systemPrompt += `\\n\\nNote: Could not retrieve schema for table '${tableName}'. Write operations are disabled.`
             }
         }
       }
@@ -265,7 +264,7 @@ export async function POST(request: NextRequest) {
         const addDataResult = await addDataResponse.json()
 
         if (addDataResponse.ok) {
-          reply = `Successfully added the data to the ${tableName} table.`
+          reply = `I have successfully added the data to the ${tableName} table.`
           dbWriteOccurred = true
         } else {
           reply = `I tried to add the data, but an error occurred: ${addDataResult.error}`
