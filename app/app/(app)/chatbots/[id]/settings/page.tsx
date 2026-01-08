@@ -18,43 +18,44 @@ import { DateTimePicker } from '@/components/ui/datetime-picker'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { formatDistanceToNow } from 'date-fns'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const MODELS = [
   { id: "allenai/olmo-3.1-32b-think:free", name: "AllenAI: Olmo 3.1 32B Think" },
-  { id: "xiaomi/mimo-v2-flash:free", name: "Xiaomi: MiMo-V2-Flash" },
-  { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "NVIDIA: Nemotron 3 Nano 30B A3B" },
-  { id: "mistralai/devstral-2512:free", name: "Mistral: Devstral 2 2512" },
-  { id: "nex-agi/deepseek-v3.1-nex-n1:free", name: "Nex AGI: DeepSeek V3.1 Nex N1" },
-  { id: "arcee-ai/trinity-mini:free", name: "Arcee AI: Trinity Mini" },
-  { id: "tngtech/tng-r1t-chimera:free", name: "TNG: R1T Chimera" },
-  { id: "kwaipilot/kat-coder-pro:free", name: "Kwaipilot: KAT-Coder-Pro V1" },
-  { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "NVIDIA: Nemotron Nano 12B 2 VL" },
-  { id: "alibaba/tongyi-deepresearch-30b-a3b:free", name: "Tongyi DeepResearch 30B A3B" },
-  { id: "nvidia/nemotron-nano-9b-v2:free", name: "NVIDIA: Nemotron Nano 9B V2" },
-  { id: "openai/gpt-oss-120b:free", name: "OpenAI: gpt-oss-120b" },
-  { id: "openai/gpt-oss-20b:free", name: "OpenAI: gpt-oss-20b" },
-  { id: "z-ai/glm-4.5-air:free", name: "Z.AI: GLM 4.5 Air" },
-  { id: "qwen/qwen3-coder:free", name: "Qwen: Qwen3 Coder 480B A35B" },
-  { id: "moonshotai/kimi-k2:free", name: "MoonshotAI: Kimi K2 0711" },
-  { id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free", name: "Venice: Uncensored" },
-  { id: "google/gemma-3n-e2b-it:free", name: "Google: Gemma 3n 2B" },
-  { id: "tngtech/deepseek-r1t2-chimera:free", name: "TNG: DeepSeek R1T2 Chimera" },
-  { id: "deepseek/deepseek-r1-0528:free", name: "DeepSeek: R1 0528" },
-  { id: "google/gemma-3n-e4b-it:free", name: "Google: Gemma 3n 4B" },
-  { id: "qwen/qwen3-4b:free", name: "Qwen: Qwen3 4B" },
-  { id: "tngtech/deepseek-r1t-chimera:free", name: "TNG: DeepSeek R1T Chimera" },
-  { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral: Mistral Small 3.1 24B" },
-  { id: "google/gemma-3-4b-it:free", name: "Google: Gemma 3 4B" },
-  { id: "google/gemma-3-12b-it:free", name: "Google: Gemma 3 12B" },
-  { id: "google/gemma-3-27b-it:free", name: "Google: Gemma 3 27B" },
-  { id: "google/gemini-2.0-flash-exp:free", name: "Google: Gemini 2.0 Flash Experimental" },
-  { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Meta: Llama 3.3 70B Instruct" },
-  { id: "meta-llama/llama-3.2-3b-instruct:free", name: "Meta: Llama 3.2 3B Instruct" },
-  { id: "qwen/qwen-2.5-vl-7b-instruct:free", name: "Qwen: Qwen2.5-VL 7B Instruct" },
-  { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Nous: Hermes 3 405B Instruct" },
-  { id: "meta-llama/llama-3.1-405b-instruct:free", name: "Meta: Llama 3.1 405B Instruct" },
-  { id: "mistralai/mistral-7b-instruct:free", name: "Mistral: Mistral 7B Instruct" }
-]
+    { id: "xiaomi/mimo-v2-flash:free", name: "Xiaomi: MiMo-V2-Flash" },
+    { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "NVIDIA: Nemotron 3 Nano 30B A3B" },
+    { id: "mistralai/devstral-2512:free", name: "Mistral: Devstral 2 2512" },
+    { id: "nex-agi/deepseek-v3.1-nex-n1:free", name: "Nex AGI: DeepSeek V3.1 Nex N1" },
+    { id: "arcee-ai/trinity-mini:free", name: "Arcee AI: Trinity Mini" },
+    { id: "tngtech/tng-r1t-chimera:free", name: "TNG: R1T Chimera" },
+    { id: "kwaipilot/kat-coder-pro:free", name: "Kwaipilot: KAT-Coder-Pro V1" },
+    { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "NVIDIA: Nemotron Nano 12B 2 VL" },
+    { id: "alibaba/tongyi-deepresearch-30b-a3b:free", name: "Tongyi DeepResearch 30B A3B" },
+    { id: "nvidia/nemotron-nano-9b-v2:free", name: "NVIDIA: Nemotron Nano 9B V2" },
+    { id: "openai/gpt-oss-120b:free", name: "OpenAI: gpt-oss-120b" },
+    { id: "openai/gpt-oss-20b:free", name: "OpenAI: gpt-oss-20b" },
+    { id: "z-ai/glm-4.5-air:free", name: "Z.AI: GLM 4.5 Air" },
+    { id: "qwen/qwen3-coder:free", name: "Qwen: Qwen3 Coder 480B A35B" },
+    { id: "moonshotai/kimi-k2:free", name: "MoonshotAI: Kimi K2 0711" },
+    { id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free", name: "Venice: Uncensored" },
+    { id: "google/gemma-3n-e2b-it:free", name: "Google: Gemma 3n 2B" },
+    { id: "tngtech/deepseek-r1t2-chimera:free", name: "TNG: DeepSeek R1T2 Chimera" },
+    { id: "deepseek/deepseek-r1-0528:free", name: "DeepSeek: R1 0528" },
+    { id: "google/gemma-3n-e4b-it:free", name: "Google: Gemma 3n 4B" },
+    { id: "qwen/qwen3-4b:free", name: "Qwen: Qwen3 4B" },
+    { id: "tngtech/deepseek-r1t-chimera:free", name: "TNG: DeepSeek R1T Chimera" },
+    { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral: Mistral Small 3.1 24B" },
+    { id: "google/gemma-3-4b-it:free", name: "Google: Gemma 3 4B" },
+    { id: "google/gemma-3-12b-it:free", name: "Google: Gemma 3 12B" },
+    { id: "google/gemma-3-27b-it:free", name: "Google: Gemma 3 27B" },
+    { id: "google/gemini-2.0-flash-exp:free", name: "Google: Gemini 2.0 Flash Experimental" },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Meta: Llama 3.3 70B Instruct" },
+    { id: "meta-llama/llama-3.2-3b-instruct:free", name: "Meta: Llama 3.2 3B Instruct" },
+    { id: "qwen/qwen-2.5-vl-7b-instruct:free", name: "Qwen: Qwen2.5-VL 7B Instruct" },
+    { id: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Nous: Hermes 3 405B Instruct" },
+    { id: "meta-llama/llama-3.1-405b-instruct:free", name: "Meta: Llama 3.1 405B Instruct" },
+    { id: "mistralai/mistral-7b-instruct:free", name: "Mistral: Mistral 7B Instruct" }
+];
 
 const TONES = [
   { value: "friendly", label: "Friendly" },
@@ -73,10 +74,7 @@ const THEMES = [
   { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
 ]
 
-interface ConnectedTable {
-  id: number
-  table_name: string
-}
+const DEFAULT_TABLES = ['products', 'leads', 'customer_queries', 'sales'];
 
 function ChatbotSettingsPage() {
   const searchParams = useSearchParams()
@@ -91,18 +89,26 @@ function ChatbotSettingsPage() {
     tone: "professional",
     model: "",
     theme: "sky",
-    data_table_name: "",
+    data_table_1: '',
+    data_table_1_read: false,
+    data_table_1_write: false,
+    data_table_2: '',
+    data_table_2_read: false,
+    data_table_2_write: false,
+    data_table_3: '',
+    data_table_3_read: false,
+    data_table_3_write: false,
   })
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [connectedTables, setConnectedTables] = useState<ConnectedTable[]>([])
+  const [allDataSources, setAllDataSources] = useState<string[]>([]);
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
   const chatbotId = params.id as string
 
   const { share, loading: shareLoading, createShareLink, deleteShareLink } = useChatbotShare(chatbotId)
-  
+
   const [deploying, setDeploying] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [expires, setExpires] = useState(false)
@@ -150,12 +156,22 @@ function ChatbotSettingsPage() {
           tone: chatbotData.tone,
           model: chatbotData.model,
           theme: chatbotData.theme || "sky",
-          data_table_name: chatbotData.data_table_name || "_none_",
+          data_table_1: chatbotData.data_table_1 || '_none_',
+          data_table_1_read: chatbotData.data_table_1_read || false,
+          data_table_1_write: chatbotData.data_table_1_write || false,
+          data_table_2: chatbotData.data_table_2 || '_none_',
+          data_table_2_read: chatbotData.data_table_2_read || false,
+          data_table_2_write: chatbotData.data_table_2_write || false,
+          data_table_3: chatbotData.data_table_3 || '_none_',
+          data_table_3_read: chatbotData.data_table_3_read || false,
+          data_table_3_write: chatbotData.data_table_3_write || false,
         })
 
         // Fetch connected tables
-        const { data: tablesData } = await supabase.from('user_connected_tables').select('id, table_name').eq('user_id', user.id)
-        setConnectedTables(tablesData || [])
+        const { data: tablesData } = await supabase.from('user_connected_tables').select('table_name').eq('user_id', user.id)
+        const customTableNames = tablesData?.map(t => t.table_name) || [];
+        const combinedSources = Array.from(new Set([...DEFAULT_TABLES, ...customTableNames]));
+        setAllDataSources(combinedSources);
 
       } catch (err) {
         console.error(err)
@@ -183,7 +199,15 @@ function ChatbotSettingsPage() {
           tone: formData.tone,
           model: formData.model,
           theme: formData.theme,
-          data_table_name: formData.data_table_name === '_none_' ? null : formData.data_table_name,
+          data_table_1: formData.data_table_1 === '_none_' ? null : formData.data_table_1,
+          data_table_1_read: formData.data_table_1_read,
+          data_table_1_write: formData.data_table_1_write,
+          data_table_2: formData.data_table_2 === '_none_' ? null : formData.data_table_2,
+          data_table_2_read: formData.data_table_2_read,
+          data_table_2_write: formData.data_table_2_write,
+          data_table_3: formData.data_table_3 === '_none_' ? null : formData.data_table_3,
+          data_table_3_read: formData.data_table_3_read,
+          data_table_3_write: formData.data_table_3_write,
         })
         .eq("id", chatbotId)
 
@@ -215,7 +239,7 @@ function ChatbotSettingsPage() {
     setCopied(id)
     setTimeout(() => setCopied(null), 2000)
   }
-  
+
   const selectedTheme = THEMES.find((t) => t.value === formData.theme) || THEMES[0];
   const embedCode = `<!-- HeHo Chatbot Widget -->
 <div id="heho-chatbot-${chatbotId}" style="height: 600px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
@@ -225,6 +249,49 @@ function ChatbotSettingsPage() {
 </script>`
 
   const iframeCode = `<iframe src="${deployUrl}" style="width: 100%; height: 600px; border: none; border-radius: 8px;" allow="microphone; camera"></iframe>`
+
+  const renderDataSourceSelect = (index: 1 | 2 | 3) => (
+    <div className='space-y-2'>
+      <label className='block text-sm font-medium text-foreground mb-2'>Data Source {index} (Optional)</label>
+      <Select
+        value={formData[`data_table_${index}`] || '_none_'}
+        onValueChange={(value) => setFormData({ ...formData, [`data_table_${index}`]: value })}
+      >
+        <SelectTrigger className='bg-background/50 border-border/50'>
+          <SelectValue placeholder='Select a table' />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value='_none_'>None</SelectItem>
+          {allDataSources.map((tableName) => (
+            <SelectItem key={tableName} value={tableName}>
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                {tableName}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className='flex items-center space-x-4'>
+        <div className='flex items-center space-x-2'>
+          <Checkbox
+            id={`read-${index}`}
+            checked={formData[`data_table_${index}_read`]}
+            onCheckedChange={(checked) => setFormData({ ...formData, [`data_table_${index}_read`]: !!checked })}
+          />
+          <label htmlFor={`read-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Read</label>
+        </div>
+        <div className='flex items-center space-x-2'>
+           <Checkbox
+            id={`write-${index}`}
+            checked={formData[`data_table_${index}_write`]}
+            onCheckedChange={(checked) => setFormData({ ...formData, [`data_table_${index}_write`]: !!checked })}
+          />
+          <label htmlFor={`write-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Write</label>
+        </div>
+      </div>
+    </div>
+  )
 
 
   if (loading || shareLoading) {
@@ -286,28 +353,13 @@ function ChatbotSettingsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Data Source</label>
-                  <Select value={formData.data_table_name || '_none_'} onValueChange={(value) => setFormData({ ...formData, data_table_name: value })}>
-                    <SelectTrigger className="bg-background/50 border-border/50">
-                      <SelectValue placeholder="Select a table" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_none_">None</SelectItem>
-                      {connectedTables.map((t) => (
-                        <SelectItem key={t.id} value={t.table_name}>
-                           <div className="flex items-center gap-2">
-                            <Database className="h-4 w-4" />
-                            {t.table_name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {connectedTables.length === 0 && (
-                    <p className='text-xs text-muted-foreground mt-2'>No database tables connected. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
-                  )}
-                </div>
+                {renderDataSourceSelect(1)}
+                {renderDataSourceSelect(2)}
+                {renderDataSourceSelect(3)}
+
+                {allDataSources.length === 0 && (
+                  <p className='text-xs text-muted-foreground mt-2'>No database tables found. <Link href="/app/database" className="text-primary hover:underline">Connect one here</Link>.</p>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Tone</label>
