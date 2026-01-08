@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (canRead || canWrite) {
-          systemPrompt += `\n\nYou are connected to the '${tableName}' table with ${accessLevel} access.`
+          systemPrompt += `\\n\\nYou are connected to the '${tableName}' table with ${accessLevel} access.`
         }
 
         if (canRead) {
@@ -166,9 +166,9 @@ export async function POST(request: NextRequest) {
             .select('*')
 
           if (tableError) {
-            systemPrompt += `\nNote: Error accessing table '${tableName}': ${tableError.message}`
+            systemPrompt += `\\nNote: Error accessing table '${tableName}': ${tableError.message}`
           } else if (tableData) {
-            systemPrompt += `\nHere is the current data from the table:\n${JSON.stringify(
+            systemPrompt += `\\nHere is the current data from the table:\\n${JSON.stringify(
               tableData,
               null,
               2
@@ -177,25 +177,21 @@ export async function POST(request: NextRequest) {
         }
 
         if (canWrite) {
-          const schema = await getTableSchema(userSupabase, tableName)
-
-          if (schema) {
-            systemPrompt += `\n\n**CRITICAL INSTRUCTION: DATABASE WRITE ACTION**`
-            systemPrompt += `\nWhen a user wants to add data to the '${tableName}' table (e.g., 'buy a product', 'add a lead'), it is your primary job to add a new row to this table.`
-            systemPrompt += `\n**Table Schema:**\n${JSON.stringify(
-              schema,
-              null,
-              2
-            )}`
-            systemPrompt += `\n**Action Steps:**`
-            systemPrompt += `\n1. Gather all required information from the user based on the schema.`
-            systemPrompt += `\n2. Confirm the details with the user.`
-            systemPrompt += `\n3. After user confirmation, you MUST IMMEDIATELY and ONLY respond with the JSON command below. Do not add ANY other text, greetings, or apologies. Your entire response must be the command.`
-            systemPrompt += `\n**Command Format:** \`[ADD_DATA]{"tableName": "${tableName}", "data": { ...column_data... }}\``
-            systemPrompt += `\n**Example:** \`[ADD_DATA]{"tableName": "sales", "data": {"product": "apples", "quantity": 20}}\``
-          } else {
-            systemPrompt += `\n\nNote: Could not retrieve schema for table '${tableName}'. Write operations may not be possible.`
-          }
+            const schema = await getTableSchema(userSupabase, tableName)
+            if (schema) {
+                systemPrompt += `\\n\\n**CRITICAL INSTRUCTION: DATABASE WRITE PROTOCOL FOR '${tableName}' TABLE**`
+                systemPrompt += `\\nYour primary function is to help users add data to the '${tableName}' table. You must strictly follow this protocol.`
+                systemPrompt += `\\n**Table Schema:**\\n${JSON.stringify(schema, null, 2)}`
+                systemPrompt += `\\n**Mandatory Protocol:**`
+                systemPrompt += `\\n1. **Information Gathering:** You MUST ask the user for the value of every single column in the schema. Do not skip any.`
+                systemPrompt += `\\n2. **Verification & Confirmation:** After gathering all information, you MUST present the complete data back to the user and ask for their explicit confirmation to proceed. For example, say "Should I proceed with adding this information to our records?"`
+                systemPrompt += `\\n3. **Execution Command:** ONLY after the user gives a clear confirmation (e.g., "yes", "proceed", "correct"), your immediate and ONLY response MUST be the following JSON command. Do not add any other text, explanation, or conversation. The command is your entire response.`
+                systemPrompt += `\\n**Command Format:** \\\`[ADD_DATA]{"tableName": "${tableName}", "data": { ...column_data... }}\\\``
+                systemPrompt += `\\n**Example:** If adding to the sales table, after user confirmation, your response would be exactly: \\\`[ADD_DATA]{"tableName": "sales", "data": {"product": "apples", "quantity": 20}}\\\``
+                systemPrompt += `\\nFailure to follow this protocol will result in an error. Do not deviate.`
+            } else {
+                systemPrompt += `\\n\\nNote: Could not retrieve schema for table '${tableName}'. Write operations may not be possible.`
+            }
         }
       }
     }
