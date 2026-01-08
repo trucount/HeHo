@@ -87,10 +87,7 @@ export async function POST(request: NextRequest) {
       } = await supabaseAdmin.auth.getUser()
 
       if (!user) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        )
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
       userId = user.id
@@ -150,14 +147,28 @@ export async function POST(request: NextRequest) {
 
         if (!tableName) continue
 
+        let accessLevel = ''
+        if (canRead && canWrite) {
+          accessLevel = 'READ and WRITE'
+        } else if (canRead) {
+          accessLevel = 'READ-ONLY'
+        } else if (canWrite) {
+          accessLevel = 'WRITE-ONLY'
+        }
+
+        if (canRead || canWrite) {
+          systemPrompt += `\n\nYou are connected to the '${tableName}' table with ${accessLevel} access.`
+        }
+
         if (canRead) {
-          const { data: tableData, error: tableError } =
-            await userSupabase.from(tableName).select('*')
+          const { data: tableData, error: tableError } = await userSupabase
+            .from(tableName)
+            .select('*')
 
           if (tableError) {
-            systemPrompt += `\n\nNote: Error accessing table '${tableName}': ${tableError.message}`
+            systemPrompt += `\nNote: Error accessing table '${tableName}': ${tableError.message}`
           } else if (tableData) {
-            systemPrompt += `\n\nHere is the data from table '${tableName}' (you have read-only access):\n${JSON.stringify(
+            systemPrompt += `\nHere is the current data from the table:\n${JSON.stringify(
               tableData,
               null,
               2
@@ -170,7 +181,7 @@ export async function POST(request: NextRequest) {
 
           if (schema) {
             systemPrompt += `\n\n**CRITICAL INSTRUCTION: DATABASE WRITE ACTION**`
-            systemPrompt += `\nYou have WRITE permission for the table '${tableName}'. When a user wants to add data (e.g., 'buy a product', 'add a lead'), it is your primary job to add a new row to this table.`
+            systemPrompt += `\nWhen a user wants to add data to the '${tableName}' table (e.g., 'buy a product', 'add a lead'), it is your primary job to add a new row to this table.`
             systemPrompt += `\n**Table Schema:**\n${JSON.stringify(
               schema,
               null,
