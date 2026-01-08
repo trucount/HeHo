@@ -28,7 +28,6 @@ const POPULAR_MODELS = [
 
 async function getTableSchema(supabaseUrl: string, supabaseKey: string, tableName: string): Promise<any[] | null> {
   try {
-    // Fetch the OpenAPI spec from the user's Supabase project
     const response = await fetch(`${supabaseUrl}/rest/v1/?apikey=${supabaseKey}`)
     if (!response.ok) {
       console.error(`Error fetching OpenAPI spec: ${response.statusText}`)
@@ -36,17 +35,14 @@ async function getTableSchema(supabaseUrl: string, supabaseKey: string, tableNam
     }
     const openapiSpec = await response.json()
 
-    // Find the table definition in the spec
     const definition = openapiSpec.definitions[tableName]
     if (!definition || !definition.properties) {
       console.error(`Table '${tableName}' not found in OpenAPI spec.`)
       return null
     }
 
-    // Exclude read-only or managed columns that shouldn't be set on insert
     const excludedColumns = ['id', 'created_at']
 
-    // Map the properties to the format the AI expects
     const schema = Object.keys(definition.properties)
       .filter(columnName => !excludedColumns.includes(columnName))
       .map(columnName => {
@@ -274,14 +270,14 @@ export async function POST(request: NextRequest) {
         const { tableName, data } = JSON.parse(jsonString)
 
         const addDataResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_SITE_URL}/api/chat/add-to-table`,
+          `${process.env.NEXT_PUBLIC_SITE_URL}/api/database/add`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Cookie: request.headers.get('cookie') || '',
             },
-            body: JSON.stringify({ chatbotId, tableName, data }),
+            body: JSON.stringify({ tableName, rowData: data }),
           }
         )
 
