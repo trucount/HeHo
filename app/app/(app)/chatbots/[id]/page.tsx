@@ -1,14 +1,14 @@
 'use client'
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ArrowLeft, Settings, Rocket, Mic, MessageSquare } from "lucide-react"
+import { Send, Loader2, ArrowLeft, Settings, Rocket, Mic, MessageSquare, PhoneOff } from "lucide-react"
 import Link from "next/link"
 
 // Add this to your component file
@@ -82,6 +82,7 @@ export default function ChatbotPage() {
   const [isListening, setIsListening] = useState(false)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
   const [userTranscript, setUserTranscript] = useState("")
+  const [talkLoopActive, setTalkLoopActive] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
@@ -90,6 +91,70 @@ export default function ChatbotPage() {
   const params = useParams()
   const supabase = createClient()
   const chatbotId = params.id as string
+
+  const startListening = useCallback(() => {
+    if (recognitionRef.current && !isListening) {
+      recognitionRef.current.start()
+    }
+  }, [isListening])
+
+  const sendAndSpeak = useCallback(async (message: string) => {
+    if (!message.trim() || limitReached) {
+      if (talkLoopActive) startListening();
+      return;
+    }
+
+    setSending(true)
+    setUserTranscript("")
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatbotId,
+          message,
+          history: [],
+        }),
+      })
+
+      const { reply, tokens } = await res.json()
+      
+      setSending(false)
+      setIsAISpeaking(true)
+      speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(reply)
+      
+      utterance.onend = () => {
+        setIsAISpeaking(false)
+        if (talkLoopActive) {
+          startListening()
+        }
+      }
+      speechSynthesis.speak(utterance)
+
+      const updatedUsage = {
+        messages: usage.messages + 1,
+        tokens: usage.tokens + (tokens || 0),
+      }
+      setUsage(updatedUsage)
+
+      if (updatedUsage.messages >= MESSAGE_LIMIT || updatedUsage.tokens >= TOKEN_LIMIT) {
+        setLimitReached(true)
+        setTalkLoopActive(false)
+      }
+    } catch (error) {
+      console.error("Error in sendAndSpeak:", error)
+      setIsAISpeaking(true)
+      const utterance = new SpeechSynthesisUtterance("Sorry, something went wrong.")
+      utterance.onend = () => {
+          setIsAISpeaking(false)
+          if (talkLoopActive) startListening()
+      }
+      speechSynthesis.speak(utterance)
+      setSending(false)
+    }
+  }, [chatbotId, limitReached, talkLoopActive, startListening, usage.messages, usage.tokens])
 
   /* ===================== SPEECH RECOGNITION ===================== */
 
@@ -103,7 +168,6 @@ export default function ChatbotPage() {
 
       recognition.onstart = () => {
         setIsListening(true)
-        setUserTranscript("")
         finalTranscriptRef.current = ""
       }
 
@@ -127,21 +191,30 @@ export default function ChatbotPage() {
 
       recognition.onend = () => {
         setIsListening(false)
-        const messageToSend = finalTranscriptRef.current.trim()
-        if (messageToSend) {
+        if (talkLoopActive) {
+          const messageToSend = finalTranscriptRef.current.trim()
           sendAndSpeak(messageToSend)
         }
       }
 
       recognitionRef.current = recognition
     }
-  }, [])
+  }, [talkLoopActive, sendAndSpeak])
 
-  const handleListen = () => {
-    if (!isListening) {
-      recognitionRef.current?.start()
+  const toggleTalkLoop = () => {
+    const nextState = !talkLoopActive;
+    setTalkLoopActive(nextState);
+    if (nextState) {
+       startListening();
+    } else {
+      recognitionRef.current?.stop()
+      speechSynthesis.cancel()
+      setIsListening(false)
+      setIsAISpeaking(false)
+      setSending(false)
     }
   }
+
 
   /* ===================== LOAD DATA ===================== */
 
@@ -201,7 +274,7 @@ export default function ChatbotPage() {
 
   useEffect(() => {
     if (mode === 'chat') {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
     }
   }, [messages, mode])
 
@@ -280,56 +353,6 @@ export default function ChatbotPage() {
     }
   }
   
-  /* ===================== SEND MESSAGE (TALK MODE) ===================== */
-
-  const sendAndSpeak = async (message: string) => {
-    if (!message.trim() || limitReached) return
-
-    setSending(true)
-    setUserTranscript("")
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatbotId,
-          message,
-          history: [], // No history in talk mode for now
-        }),
-      })
-
-      const { reply, tokens } = await res.json()
-      
-      setSending(false)
-      setIsAISpeaking(true)
-      speechSynthesis.cancel() 
-      const utterance = new SpeechSynthesisUtterance(reply)
-      utterance.onend = () => {
-        setIsAISpeaking(false)
-      }
-      speechSynthesis.speak(utterance)
-
-      const updatedUsage = {
-        messages: usage.messages + 1,
-        tokens: usage.tokens + (tokens || 0),
-      }
-      setUsage(updatedUsage)
-
-      if (
-        updatedUsage.messages >= MESSAGE_LIMIT ||
-        updatedUsage.tokens >= TOKEN_LIMIT
-      ) {
-        setLimitReached(true)
-      }
-    } catch (error) {
-      console.error("Error in sendAndSpeak:", error)
-      const utterance = new SpeechSynthesisUtterance("Sorry, something went wrong.")
-      speechSynthesis.speak(utterance)
-      setSending(false)
-    }
-  }
-
   /* ===================== UI ===================== */
 
   const selectedTheme =
@@ -359,17 +382,17 @@ export default function ChatbotPage() {
       <div className="my-8">
         <Button
           size="lg"
-          className={`rounded-full w-24 h-24 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}
-          onClick={handleListen}
-          disabled={isListening || sending || isAISpeaking}
+          className={`rounded-full w-24 h-24 ${talkLoopActive ? 'bg-red-500' : 'bg-blue-500'}`}
+          onClick={toggleTalkLoop}
         >
-          <Mic className="h-12 w-12" />
+          {talkLoopActive ? <PhoneOff className="h-10 w-10" /> : <Mic className="h-12 w-12" />}
         </Button>
       </div>
       <div className="h-8">
         {isListening && <p className={`text-lg ${selectedTheme.textColor}`}>Listening...</p>}
         {sending && <p className={`text-lg ${selectedTheme.textColor}`}>Thinking...</p>}
         {isAISpeaking && <p className={`text-lg ${selectedTheme.textColor}`}>AI is speaking...</p>}
+        {!talkLoopActive && !isAISpeaking && !sending && <p className={`text-lg ${selectedTheme.textColor}`}>Click the mic to start the call</p>}
       </div>
     </div>
   );
@@ -400,7 +423,7 @@ export default function ChatbotPage() {
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="border-t border-white/20 p-4">
+      <div className="border-t border-white/20 p-4 bg-black/10">
         {limitReached ? (
           <p className="text-red-400 text-center">
             Daily limit reached.
@@ -424,9 +447,9 @@ export default function ChatbotPage() {
   );
 
   return (
-    <div className={`h-screen flex flex-col ${selectedTheme.color}`}>
+    <div className={`h-screen max-h-screen flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
-      <header className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
+      <header className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center z-10">
         <div className="flex items-center gap-3">
           <Link href="/app/chatbots">
             <Button variant="ghost" size="icon">
