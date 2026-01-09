@@ -58,13 +58,13 @@ export function PricingSection() {
               key={plan.name}
               className={`relative border rounded-xl p-8 transition-all duration-300 ${
                 plan.popular
-                  ? "border-black/50 bg-black/5 ring-1 ring-black/20 scale-105"
+                  ? "border-foreground/50 bg-card/5 ring-1 ring-foreground/20 scale-105"
                   : "border-border/50 bg-card/50"
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-black text-white px-4 py-1 rounded-full text-sm font-semibold">Most Popular</span>
+                  <span className="bg-foreground text-background px-4 py-1 rounded-full text-sm font-semibold">Most Popular</span>
                 </div>
               )}
 
@@ -80,7 +80,7 @@ export function PricingSection() {
               <ul className="space-y-4 mb-8">
                 {plan.features.map((feature, idx) => (
                   <li key={idx} className="flex items-center text-foreground/80">
-                    <Check className="h-5 w-5 text-black mr-3 flex-shrink-0" />
+                    <Check className="h-5 w-5 text-foreground mr-3 flex-shrink-0" />
                     <span className="text-sm">{feature}</span>
                   </li>
                 ))}
@@ -89,7 +89,7 @@ export function PricingSection() {
               <Link href={plan.href} className="w-full block">
                 <Button
                   className={`w-full group ${
-                    plan.popular ? "bg-black hover:bg-gray-900 text-white border border-white" : ""
+                    plan.popular ? "bg-foreground hover:bg-muted text-background border border-background" : ""
                   }`}
                   variant={plan.popular ? "default" : "outline"}
                   size="lg"

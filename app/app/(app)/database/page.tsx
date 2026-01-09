@@ -69,7 +69,7 @@ export default function DatabasePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <Loader2 className="h-8 w-8 animate-spin text-foreground" />
       </div>
     )
   }
@@ -82,7 +82,7 @@ export default function DatabasePage() {
             <h1 className="text-3xl font-bold text-foreground">Database</h1>
             <p className="text-muted-foreground mt-1">View tables in your database.</p>
           </div>
-          <Button asChild className="bg-black hover:bg-gray-900 text-white border border-white/20">
+          <Button asChild className="bg-foreground hover:bg-muted text-background border border-border">
             <Link href="/app/database/connect"><Plus className="mr-2 h-4 w-4"/> Connect a Table</Link>
           </Button>
         </div>
@@ -99,7 +99,7 @@ export default function DatabasePage() {
 
             return (
               <Link key={table.id} href={`/app/database/${encodeURIComponent(table.table_name)}`} passHref>
-                <Card className="border-border/50 bg-card/50 hover:border-white/30 hover:bg-card/80 transition-all cursor-pointer h-full flex flex-col">
+                <Card className="border-border/50 bg-card hover:border-foreground/30 hover:bg-card/80 transition-all cursor-pointer h-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-foreground flex items-center gap-3">
                       <DatabaseIcon className="h-6 w-6 text-muted-foreground"/>
@@ -109,12 +109,12 @@ export default function DatabasePage() {
                   <CardContent className="flex-grow flex flex-col justify-between">
                     <p className="text-muted-foreground text-sm">Click to view this table's data.</p>
                     {isEditable ? (
-                       <div className="mt-4 p-2 rounded-md bg-green-900/30 border border-green-700/50 text-green-400 text-xs flex items-center gap-2">
+                       <div className="mt-4 p-2 rounded-md bg-green-500/10 border border-green-500/50 text-green-500 text-xs flex items-center gap-2">
                           <CheckCircle className="h-4 w-4"/>
                           <span>This table can be edited.</span>
                       </div>
                     ) : (
-                      <div className="mt-4 p-2 rounded-md bg-yellow-900/30 border border-yellow-700/50 text-yellow-400 text-xs flex items-center gap-2">
+                      <div className="mt-4 p-2 rounded-md bg-yellow-500/10 border border-yellow-500/50 text-yellow-500 text-xs flex items-center gap-2">
                           <Zap className="h-4 w-4"/>
                           <span>Editing is a premium feature. View only.</span>
                       </div>

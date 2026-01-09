@@ -30,7 +30,7 @@ export function HeroSection() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Link href="/signup">
-              <Button size="lg" className="bg-black hover:bg-gray-900 text-white border border-white group">
+              <Button size="lg" className="bg-foreground hover:bg-muted text-background border border-foreground group">
                 Get Started Free
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -39,7 +39,7 @@ export function HeroSection() {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-foreground hover:bg-white/10 bg-transparent"
+                className="border-foreground text-foreground hover:bg-muted/10 bg-transparent"
               >
                 Try Demo
               </Button>
@@ -49,7 +49,7 @@ export function HeroSection() {
       </div>
 
       {/* Animated wave background */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background/10 to-transparent pointer-events-none" />
     </section>
   )
 }

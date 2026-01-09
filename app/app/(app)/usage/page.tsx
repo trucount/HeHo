@@ -18,6 +18,7 @@ import {
   BarChart,
   Bar,
 } from "recharts"
+import { useTheme } from "next-themes"
 
 type TimeRange = "daily" | "weekly" | "monthly" | "yearly"
 
@@ -38,6 +39,7 @@ export default function UsagePage() {
   const [stats, setStats] = useState({ totalMessages: 0, totalTokens: 0, totalApiCalls: 0 })
   const router = useRouter()
   const supabase = createClient()
+  const { theme } = useTheme()
 
   useEffect(() => {
     const loadUsageData = async () => {
@@ -110,12 +112,20 @@ export default function UsagePage() {
     }
 
     loadUsageData()
-  }, [timeRange])
+  }, [timeRange, supabase, router])
+
+  const axisColor = theme === 'dark' ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
+  const gridColor = theme === 'dark' ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+  const tooltipStyle = theme === 'dark' 
+    ? { backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.2)" } 
+    : { backgroundColor: "rgba(255,255,255,0.8)", border: "1px solid rgba(0,0,0,0.2)" };
+  const lineColors = theme === 'dark' ? ["#ffffff", "#888888"] : ["#000000", "#888888"];
+  const barColor = theme === 'dark' ? "#ffffff" : "#000000";
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <Loader2 className="h-8 w-8 animate-spin text-foreground" />
       </div>
     )
   }
@@ -123,7 +133,7 @@ export default function UsagePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 sm:px-6 py-8">
-         <div class="mb-4 sm:mb-0">
+         <div className="mb-4 sm:mb-0">
             <h1 className="text-3xl font-bold text-foreground">Usage Analytics</h1>
             <p className="text-muted-foreground">Track your API usage and analytics</p>
           </div>
@@ -136,7 +146,7 @@ export default function UsagePage() {
               onClick={() => setTimeRange(range)}
               variant={timeRange === range ? "default" : "outline"}
               className={
-                timeRange === range ? "bg-black text-white" : "border-border/50 text-foreground hover:bg-white/10"
+                timeRange === range ? "bg-foreground text-background" : "border-border/50 text-foreground hover:bg-muted/50"
               }
             >
               <Calendar className="mr-2 h-4 w-4" />
@@ -195,15 +205,13 @@ export default function UsagePage() {
               {usageData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={usageData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <YAxis stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.2)" }}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="date" stroke={axisColor} fontSize={12} />
+                    <YAxis stroke={axisColor} fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
                     <Legend />
-                    <Line type="monotone" dataKey="messages" stroke="#ffffff" name="Messages" />
-                    <Line type="monotone" dataKey="tokens" stroke="#888888" name="Tokens" />
+                    <Line type="monotone" dataKey="messages" stroke={lineColors[0]} name="Messages" />
+                    <Line type="monotone" dataKey="tokens" stroke={lineColors[1]} name="Tokens" />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -223,14 +231,12 @@ export default function UsagePage() {
               {usageData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={usageData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <YAxis stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.2)" }}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="date" stroke={axisColor} fontSize={12} />
+                    <YAxis stroke={axisColor} fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
                     <Legend />
-                    <Bar dataKey="apiCalls" fill="#ffffff" name="API Calls" />
+                    <Bar dataKey="apiCalls" fill={barColor} name="API Calls" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -264,7 +270,7 @@ export default function UsagePage() {
                   </thead>
                   <tbody>
                     {usageData.map((row) => (
-                      <tr key={row.date} className="border-b border-border/50 hover:bg-white/5">
+                      <tr key={row.date} className="border-b border-border/50 hover:bg-muted/20">
                         <td className="py-3 px-4 text-foreground">{row.date}</td>
                         <td className="text-right py-3 px-4 text-foreground">{row.messages}</td>
                         <td className="text-right py-3 px-4 text-foreground">{row.tokens.toLocaleString()}</td>
