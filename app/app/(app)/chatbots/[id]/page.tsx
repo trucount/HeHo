@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ArrowLeft, Settings, Rocket } from "lucide-react"
+import { Send, Loader2, ArrowLeft, Settings, Rocket, Volume2 } from "lucide-react"
 import Link from "next/link"
 
 /* ===================== TYPES ===================== */
@@ -72,6 +72,7 @@ export default function ChatbotPage() {
   const [sending, setSending] = useState(false)
   const [usage, setUsage] = useState<Usage>({ messages: 0, tokens: 0 })
   const [limitReached, setLimitReached] = useState(false)
+  const [voiceMode, setVoiceMode] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -185,6 +186,11 @@ export default function ChatbotPage() {
         )
       })
 
+      if (voiceMode) {
+        const utterance = new SpeechSynthesisUtterance(reply)
+        speechSynthesis.speak(utterance)
+      }
+
       const updatedUsage = {
         messages: usage.messages + 1,
         tokens: usage.tokens + (tokens || 0),
@@ -249,6 +255,13 @@ export default function ChatbotPage() {
           </h1>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setVoiceMode(!voiceMode)}
+          >
+            <Volume2 className={voiceMode ? "text-blue-500" : ""} />
+          </Button>
           <Link href={`/app/chatbots/${chatbot.id}/settings?tab=config`}>
             <Button variant="outline" size="icon">
               <Settings />
@@ -263,7 +276,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Chat */}
-      <div className="flex-1 overflow-y-auto p-4 max-w-2xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full">
         <div className="space-y-4">
           {messages.map((m) => (
             <div
@@ -295,7 +308,7 @@ export default function ChatbotPage() {
             Daily limit reached.
           </p>
         ) : (
-          <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
+          <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
