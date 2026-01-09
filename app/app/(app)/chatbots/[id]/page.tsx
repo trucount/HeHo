@@ -81,6 +81,7 @@ export default function ChatbotPage() {
   const [mode, setMode] = useState<'chat' | 'talk'>('chat')
   const [isListening, setIsListening] = useState(false)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
+  const [userTranscript, setUserTranscript] = useState("")
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
@@ -95,19 +96,27 @@ export default function ChatbotPage() {
     const SpeechRecognition = (window as IWindow).webkitSpeechRecognition || window.SpeechRecognition
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = false
+      recognition.continuous = true
+      recognition.interimResults = true
       recognition.lang = 'en-US'
 
       recognition.onstart = () => {
         setIsListening(true)
+        setUserTranscript("")
       }
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript
-        if (transcript) {
-          sendAndSpeak(transcript)
+        let interimTranscript = ''
+        let finalTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' '
+          } else {
+            interimTranscript += transcript
+          }
         }
+        setUserTranscript(finalTranscript + interimTranscript)
       }
 
       recognition.onerror = (event: any) => {
@@ -117,11 +126,14 @@ export default function ChatbotPage() {
 
       recognition.onend = () => {
         setIsListening(false)
+        if (userTranscript.trim()) {
+          sendAndSpeak(userTranscript.trim())
+        }
       }
 
       recognitionRef.current = recognition
     }
-  }, [])
+  }, [userTranscript])
 
   const handleListen = () => {
     if (isListening) {
@@ -274,6 +286,7 @@ export default function ChatbotPage() {
     if (!message.trim() || limitReached) return
 
     setSending(true)
+    setUserTranscript("")
 
     try {
       const res = await fetch("/api/chat", {
@@ -287,7 +300,8 @@ export default function ChatbotPage() {
       })
 
       const { reply, tokens } = await res.json()
-
+      
+      setSending(false)
       setIsAISpeaking(true)
       speechSynthesis.cancel() 
       const utterance = new SpeechSynthesisUtterance(reply)
@@ -312,7 +326,6 @@ export default function ChatbotPage() {
       console.error("Error in sendAndSpeak:", error)
       const utterance = new SpeechSynthesisUtterance("Sorry, something went wrong.")
       speechSynthesis.speak(utterance)
-    } finally {
       setSending(false)
     }
   }
@@ -340,17 +353,20 @@ export default function ChatbotPage() {
   
   const renderTalkMode = () => (
     <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-      <h2 className={`text-2xl font-bold mb-4 ${selectedTheme.textColor}`}>Talk Mode</h2>
-      <p className={`mb-8 ${selectedTheme.textColor}`}>Click the microphone to speak to your chatbot.</p>
-      <Button
-        size="lg"
-        className={`rounded-full w-24 h-24 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}
-        onClick={handleListen}
-        disabled={sending || isAISpeaking}
-      >
-        <Mic className="h-12 w-12" />
-      </Button>
-      <div className="mt-8 h-8">
+      <div className="h-24 flex items-center justify-center">
+         <p className={`text-2xl font-medium ${selectedTheme.textColor}`}>{userTranscript}</p>
+      </div>
+      <div className="my-8">
+        <Button
+          size="lg"
+          className={`rounded-full w-24 h-24 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}
+          onClick={handleListen}
+          disabled={sending || isAISpeaking}
+        >
+          <Mic className="h-12 w-12" />
+        </Button>
+      </div>
+      <div className="h-8">
         {isListening && <p className={`text-lg ${selectedTheme.textColor}`}>Listening...</p>}
         {sending && <p className={`text-lg ${selectedTheme.textColor}`}>Thinking...</p>}
         {isAISpeaking && <p className={`text-lg ${selectedTheme.textColor}`}>AI is speaking...</p>}
