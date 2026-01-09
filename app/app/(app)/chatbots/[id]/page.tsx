@@ -85,6 +85,7 @@ export default function ChatbotPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
+  const finalTranscriptRef = useRef("")
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
@@ -96,27 +97,27 @@ export default function ChatbotPage() {
     const SpeechRecognition = (window as IWindow).webkitSpeechRecognition || window.SpeechRecognition
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition()
-      recognition.continuous = true
+      recognition.continuous = false
       recognition.interimResults = true
       recognition.lang = 'en-US'
 
       recognition.onstart = () => {
         setIsListening(true)
         setUserTranscript("")
+        finalTranscriptRef.current = ""
       }
 
       recognition.onresult = (event: any) => {
         let interimTranscript = ''
-        let finalTranscript = ''
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript
           if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' '
+            finalTranscriptRef.current += transcript + ' '
           } else {
             interimTranscript += transcript
           }
         }
-        setUserTranscript(finalTranscript + interimTranscript)
+        setUserTranscript(finalTranscriptRef.current + interimTranscript)
       }
 
       recognition.onerror = (event: any) => {
@@ -126,19 +127,18 @@ export default function ChatbotPage() {
 
       recognition.onend = () => {
         setIsListening(false)
-        if (userTranscript.trim()) {
-          sendAndSpeak(userTranscript.trim())
+        const messageToSend = finalTranscriptRef.current.trim()
+        if (messageToSend) {
+          sendAndSpeak(messageToSend)
         }
       }
 
       recognitionRef.current = recognition
     }
-  }, [userTranscript])
+  }, [])
 
   const handleListen = () => {
-    if (isListening) {
-      recognitionRef.current?.stop()
-    } else {
+    if (!isListening) {
       recognitionRef.current?.start()
     }
   }
@@ -361,7 +361,7 @@ export default function ChatbotPage() {
           size="lg"
           className={`rounded-full w-24 h-24 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}
           onClick={handleListen}
-          disabled={sending || isAISpeaking}
+          disabled={isListening || sending || isAISpeaking}
         >
           <Mic className="h-12 w-12" />
         </Button>
