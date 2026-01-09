@@ -47,12 +47,12 @@ const THEMES = [
   { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
 ]
 
-/* ===================== LIVE TYPING EFFECT ===================== */
+/* ===================== TYPEWRITER EFFECT ===================== */
 
 const typeWriterEffect = async (
   text: string,
   onUpdate: (partial: string) => void,
-  speed = 12
+  speed = 14
 ) => {
   let current = ""
   for (let i = 0; i < text.length; i++) {
@@ -116,6 +116,7 @@ export default function ChatbotPage() {
         if (usageData?.length) {
           const totalMessages = usageData.reduce((a, b) => a + (b.messages || 0), 0)
           const totalTokens = usageData.reduce((a, b) => a + (b.tokens || 0), 0)
+
           setUsage({ messages: totalMessages, tokens: totalTokens })
 
           if (totalMessages >= MESSAGE_LIMIT || totalTokens >= TOKEN_LIMIT) {
@@ -162,7 +163,7 @@ export default function ChatbotPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatbotId,
-          message: input,
+          message: userMessage.content,
           history: messages,
         }),
       })
@@ -282,9 +283,7 @@ export default function ChatbotPage() {
               </div>
             </div>
           ))}
-          {sending && (
-            <Loader2 className="h-4 w-4 animate-spin text-white" />
-          )}
+          {sending && <Loader2 className="h-4 w-4 animate-spin text-white" />}
           <div ref={messagesEndRef} />
         </div>
       </div>
