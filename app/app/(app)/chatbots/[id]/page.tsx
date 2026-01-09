@@ -6,9 +6,15 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ArrowLeft, Settings, Rocket, Volume2 } from "lucide-react"
+import { Send, Loader2, ArrowLeft, Settings, Rocket, Volume2, Mic } from "lucide-react"
 import Link from "next/link"
+
+// Add this to your component file
+interface IWindow extends Window {
+  webkitSpeechRecognition: any;
+}
 
 /* ===================== TYPES ===================== */
 
@@ -73,12 +79,60 @@ export default function ChatbotPage() {
   const [usage, setUsage] = useState<Usage>({ messages: 0, tokens: 0 })
   const [limitReached, setLimitReached] = useState(false)
   const [voiceMode, setVoiceMode] = useState(false)
+  const [isListening, setIsListening] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recognitionRef = useRef<any>(null)
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
   const chatbotId = params.id as string
+
+  /* ===================== SPEECH RECOGNITION ===================== */
+
+  useEffect(() => {
+    const SpeechRecognition = (window as IWindow).webkitSpeechRecognition || window.SpeechRecognition
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = ''
+        let finalTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' '
+          } else {
+            interimTranscript += transcript
+          }
+        }
+        setInput(finalTranscript + interimTranscript)
+      }
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error)
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognitionRef.current = recognition
+    }
+  }, [])
+
+  const handleListen = () => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+    } else {
+      recognitionRef.current?.start()
+      setIsListening(true)
+    }
+  }
 
   /* ===================== LOAD DATA ===================== */
 
@@ -146,6 +200,11 @@ export default function ChatbotPage() {
     e.preventDefault()
     if (!input.trim() || limitReached) return
 
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+    }
+
     setSending(true)
 
     const userMessage: Message = {
@@ -187,6 +246,7 @@ export default function ChatbotPage() {
       })
 
       if (voiceMode) {
+        speechSynthesis.cancel() // Cancel any previous speech
         const utterance = new SpeechSynthesisUtterance(reply)
         speechSynthesis.speak(utterance)
       }
@@ -226,7 +286,7 @@ export default function ChatbotPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
@@ -243,25 +303,18 @@ export default function ChatbotPage() {
   return (
     <div className={`h-screen flex flex-col ${selectedTheme.color}`}>
       {/* Header */}
-      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between">
+      <header className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Link href="/app/chatbots">
             <Button variant="ghost" size="icon">
               <ArrowLeft />
             </Button>
           </Link>
-          <h1 className={`font-bold ${selectedTheme.textColor}`}>
+          <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>
             {chatbot.name}
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setVoiceMode(!voiceMode)}
-          >
-            <Volume2 className={voiceMode ? "text-blue-500" : ""} />
-          </Button>
           <Link href={`/app/chatbots/${chatbot.id}/settings?tab=config`}>
             <Button variant="outline" size="icon">
               <Settings />
@@ -273,11 +326,11 @@ export default function ChatbotPage() {
             </Button>
           </Link>
         </div>
-      </div>
+      </header>
 
       {/* Chat */}
-      <div className="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 p-4">
+        <div className="max-w-4xl mx-auto w-full space-y-4">
           {messages.map((m) => (
             <div
               key={m.id}
@@ -286,7 +339,7 @@ export default function ChatbotPage() {
               }`}
             >
               <div
-                className={`px-4 py-3 rounded-lg max-w-xs whitespace-pre-wrap leading-relaxed ${
+                className={`px-4 py-3 rounded-lg max-w-md whitespace-pre-wrap leading-relaxed shadow-md ${
                   m.role === "user"
                     ? `${selectedTheme.color} ${selectedTheme.textColor}`
                     : "bg-white/20 text-white"
@@ -299,7 +352,7 @@ export default function ChatbotPage() {
           {sending && <Loader2 className="h-4 w-4 animate-spin text-white" />}
           <div ref={messagesEndRef} />
         </div>
-      </div>
+      </ScrollArea>
 
       {/* Input */}
       <div className="border-t border-white/20 p-4">
@@ -308,15 +361,34 @@ export default function ChatbotPage() {
             Daily limit reached.
           </p>
         ) : (
-          <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto">
+          <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-4xl mx-auto">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask your chatbot..."
+              placeholder={isListening ? "Listening..." : "Ask your chatbot..."}
               disabled={sending}
+              className="flex-1"
             />
+            {recognitionRef.current && (
+              <Button
+                type="button"
+                variant={isListening ? "destructive" : "outline"}
+                size="icon"
+                onClick={handleListen}
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant={voiceMode ? "default" : "outline"}
+              size="icon"
+              onClick={() => setVoiceMode(!voiceMode)}
+            >
+              <Volume2 className="h-4 w-4" />
+            </Button>
             <Button type="submit" disabled={sending || !input.trim()}>
-              {sending ? <Loader2 className="animate-spin" /> : <Send />}
+              {sending ? <Loader2 className="animate-spin h-4 w-4" /> : <Send className="h-4 w-4" />}
             </Button>
           </form>
         )}
