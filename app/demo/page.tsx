@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -16,7 +16,7 @@ export default function DemoPage() {
           <div className="container mx-auto">
             <div className="max-w-4xl mx-auto">
               <div className="mb-8 text-center">
-                <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">Try HeHo Premium</h1>
+                <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">Try HeHo</h1>
                 <p className="text-lg text-muted-foreground mb-8">
                   Experience the full power of HeHo with unlimited chatbots, advanced analytics, and priority support.
                 </p>
@@ -24,36 +24,37 @@ export default function DemoPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                 <Card className="border-border/50 bg-card/50 p-8">
-                  <h2 className="text-2xl font-bold text-foreground mb-4">Premium Features</h2>
+                  <h2 className="text-2xl font-bold text-foreground mb-4">Free Plan</h2>
+                  <p className="text-muted-foreground mb-6">Perfect for getting started with AI chatbots</p>
                   <ul className="space-y-3 text-foreground mb-6">
                     <li className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-white" />
-                      <span>Unlimited Chatbots</span>
+                      <Zap className="h-5 w-5 text-foreground" />
+                      <span>1 chatbot</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-white" />
-                      <span>Unlimited Messages</span>
+                      <Zap className="h-5 w-5 text-foreground" />
+                      <span>100 messages/day</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-white" />
-                      <span>Priority Support</span>
+                      <Zap className="h-5 w-5 text-foreground" />
+                      <span>Free OpenRouter models</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-white" />
-                      <span>Custom Branding</span>
+                      <Zap className="h-5 w-5 text-foreground" />
+                      <span>Supabase integration</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-white" />
-                      <span>Advanced Analytics</span>
+                      <Zap className="h-5 w-5 text-foreground" />
+                      <span>Email support</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-white" />
-                      <span>Team Collaboration</span>
+                      <Zap className="h-5 w-5 text-foreground" />
+                      <span>Basic analytics</span>
                     </li>
                   </ul>
                   <Link href="/signup">
-                    <Button className="w-full bg-black hover:bg-gray-900 text-white border border-white">
-                      Start Premium Trial
+                    <Button className="w-full dark:bg-white dark:hover:bg-gray-200 dark:text-black bg-black hover:bg-gray-800 text-white">
+                      Get Started
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -74,7 +75,7 @@ export default function DemoPage() {
                     <Link href="/beta">
                       <Button
                         variant="outline"
-                        className="w-full border-white text-foreground hover:bg-white/10 bg-transparent"
+                        className="w-full border-foreground/50 text-foreground hover:bg-foreground/10"
                       >
                         Join Waitlist
                       </Button>
@@ -82,19 +83,6 @@ export default function DemoPage() {
                   </div>
                 </Card>
               </div>
-
-              <Card className="border-border/50 bg-card/50 p-8 text-center">
-                <h2 className="text-2xl font-bold text-foreground mb-4">Live Demo</h2>
-                <p className="text-muted-foreground mb-6">
-                  Create a free account and try HeHo right now. No credit card required.
-                </p>
-                <Link href="/signup">
-                  <Button className="bg-black hover:bg-gray-900 text-white border border-white">
-                    Get Started Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </Card>
             </div>
           </div>
         </section>
