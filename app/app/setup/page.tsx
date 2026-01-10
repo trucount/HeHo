@@ -11,6 +11,7 @@ import { ArrowRight, CheckCircle, AlertCircle, Loader2, CheckCircle2 } from "luc
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { supabaseOAuthConfig } from "@/lib/supabase/config"
+import { useTheme } from "next-themes"
 
 const SUPABASE_REGIONS = [
   { value: "ap-northeast-1", label: "Asia Pacific (Tokyo)" },
@@ -52,6 +53,8 @@ export default function SetupWizardPage() {
   const [newDbPassword, setNewDbPassword] = useState("")
   const [newProjectRegion, setNewProjectRegion] = useState("us-east-1")
   const [creatingProject, setCreatingProject] = useState(false)
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
   // State for Step 3: Table Creation & Verification
   const [isTablesLoading, setIsTablesLoading] = useState(false);
@@ -64,6 +67,7 @@ export default function SetupWizardPage() {
   const supabase = createClient()
 
   useEffect(() => {
+    setMounted(true)
     const savedState = localStorage.getItem('setupState');
     if (savedState) {
       try {
@@ -360,33 +364,43 @@ export default function SetupWizardPage() {
 
   const hasInteractedWithSupabase = supabaseUrl || supabaseKey || selectedProject;
   const allVerified = verificationResult ? Object.values(verificationResult).every(v => v === true) : false;
+  const videoSrc = resolvedTheme === 'dark' ? '/setupbg.mp4' : '/4990317-hd_1920_1080_30fps-negate.mp4';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
-        <video autoPlay loop muted playsInline className="absolute z-0 w-full h-full object-cover" src="/setupbg.mp4" />
-        <div className="absolute z-10 w-full h-full bg-black/50"></div>
+        {mounted && (
+          <video
+            key={videoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute z-0 w-full h-full object-cover"
+            src={videoSrc}
+          />
+        )}
         <div className="w-full max-w-2xl z-20">
-        <div className="flex gap-2 mb-8">{[1, 2, 3, 4, 5].map(s => <div key={s} className={`h-2 flex-1 rounded-full transition-all ${s <= step ? "bg-white" : "bg-border/50"}`} />)}</div>
+        <div className="flex gap-2 mb-8">{[1, 2, 3, 4, 5].map(s => <div key={s} className={`h-2 flex-1 rounded-full transition-all ${s <= step ? (resolvedTheme === 'dark' ? "bg-white" : "bg-black") : "bg-border/50"}`} />)}</div>
 
         {error && <Alert variant="destructive" className="mb-4"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
         {success && <Alert className="mb-4 border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>{success}</AlertDescription></Alert>}
 
         {step === 1 && (
-          <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-lg dark:text-white text-black">
             <CardHeader><CardTitle>Connect OpenRouter</CardTitle><CardDescription>Enter your OpenRouter API key.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
               <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Get a free key at <a href="https://openrouter.ai" target="_blank" rel="noreferrer" className="underline font-semibold">openrouter.ai</a></AlertDescription></Alert>
               <div>
                 <label className="block text-sm font-medium mb-2">OpenRouter API Key</label>
-                <Input type="password" placeholder="sk-or-..." value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)} className="bg-background/50" />
+                <Input type="password" placeholder="sk-or-..." value={openRouterKey} onChange={e => setOpenRouterKey(e.target.value)} className="bg-transparent" />
               </div>
-              <Button onClick={testOpenRouterKey} disabled={!openRouterKey || testing} className="w-full bg-white text-black hover:bg-gray-200">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
+              <Button onClick={testOpenRouterKey} disabled={!openRouterKey || testing} className="w-full dark:bg-white dark:text-black dark:hover:bg-gray-200 bg-black text-white hover:bg-gray-800">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
             </CardContent>
           </Card>
         )}
 
         {step === 2 && (
-            <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+            <Card className="border-border/50 bg-card/50 backdrop-blur-lg dark:text-white text-black">
                 {step2SubStep === 'select' ? (
                     <>
                         <CardHeader><CardTitle>Connect Supabase</CardTitle><CardDescription>Link a database to store and manage your chatbot data.</CardDescription></CardHeader>
@@ -404,7 +418,7 @@ export default function SetupWizardPage() {
                                 <div className="space-y-4">
                                     <label className="block text-sm font-medium">Select or create a project</label>
                                     <Select onValueChange={handleProjectSelect} value={selectedProject || ''}>
-                                        <SelectTrigger className="w-full bg-background/50"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
+                                        <SelectTrigger className="w-full bg-transparent"><SelectValue placeholder="Select a Supabase project" /></SelectTrigger>
                                         <SelectContent>
                                             {supabaseProjects.map(proj => <SelectItem key={proj.id} value={proj.ref}>{proj.name}</SelectItem>)}
                                             {providerToken && <SelectItem value="create_new">+ Create a new project</SelectItem>}
@@ -415,14 +429,14 @@ export default function SetupWizardPage() {
 
                             <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or manually</span></div></div>
 
-                            <div><label className="block text-sm font-medium mb-2">Supabase Project URL</label><Input type="text" placeholder="https://xxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} className="bg-background/50" /></div>
-                            <div><label className="block text-sm font-medium mb-2">Supabase Anon (Public) Key</label><Input type="password" placeholder="eyJhbGciOiJIUzI1NiIsIn..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} className="bg-background/50" /></div>
+                            <div><label className="block text-sm font-medium mb-2">Supabase Project URL</label><Input type="text" placeholder="https://xxxxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} className="bg-transparent" /></div>
+                            <div><label className="block text-sm font-medium mb-2">Supabase Anon (Public) Key</label><Input type="password" placeholder="eyJhbGciOiJIUzI1NiIsIn..." value={supabaseKey} onChange={e => setSupabaseKey(e.target.value)} className="bg-transparent" /></div>
 
                             {connectionSuccess && <Alert className="border-green-500/50 bg-green-500/10 text-green-300"><CheckCircle className="h-4 w-4" /><AlertDescription>Connected successfully!</AlertDescription></Alert>}
 
                             <div className="flex gap-3 pt-4">
                                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
-                                <Button onClick={handleSupabaseStepContinue} disabled={testing || !selectedProject} className="flex-1 bg-white text-black hover:bg-gray-200">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
+                                <Button onClick={handleSupabaseStepContinue} disabled={testing || !selectedProject} className="flex-1 dark:bg-white dark:text-black dark:hover:bg-gray-200 bg-black text-white hover:bg-gray-800">{testing && hasInteractedWithSupabase ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Testing...</> : <>Continue<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
                             </div>
                         </CardContent>
                     </>
@@ -452,10 +466,10 @@ export default function SetupWizardPage() {
         )}
 
         {step === 3 && (
-             <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+             <Card className="border-border/50 bg-card/50 backdrop-blur-lg dark:text-white text-black">
                 <CardHeader><CardTitle>Create & Verify Database Tables</CardTitle><CardDescription>This will create the necessary tables in your selected Supabase project.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
-                    <Button onClick={handleCreateTableAndVerify} disabled={isTablesLoading || isVerifying || allVerified} className="w-full bg-white text-black hover:bg-gray-200">
+                    <Button onClick={handleCreateTableAndVerify} disabled={isTablesLoading || isVerifying || allVerified} className="w-full dark:bg-white dark:text-black dark:hover:bg-gray-200 bg-black text-white hover:bg-gray-800">
                         {(isTablesLoading || isVerifying) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isTablesLoading && !isVerifying && 'Creating Tables...'}
                         {isVerifying && 'Verifying...'}
@@ -480,14 +494,14 @@ export default function SetupWizardPage() {
 
                     <div className="flex gap-3 pt-4">
                         <Button variant="outline" onClick={() => setStep(2)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button>
-                        <Button onClick={() => setStep(4)} disabled={!allVerified} className="flex-1 bg-white text-black hover:bg-gray-200">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button>
+                        <Button onClick={() => setStep(4)} disabled={!allVerified} className="flex-1 dark:bg-white dark:text-black dark:hover:bg-gray-200 bg-black text-white hover:bg-gray-800">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button>
                     </div>
                 </CardContent>
            </Card>
         )}
 
         {step === 4 && (
-             <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+             <Card className="border-border/50 bg-card/50 backdrop-blur-lg dark:text-white text-black">
              <CardHeader><CardTitle>Database Permissions</CardTitle><CardDescription>Control what your AI can do. Skipped if no database is linked.</CardDescription></CardHeader>
              <CardContent className="space-y-6">
                <div className="space-y-4">
@@ -495,13 +509,13 @@ export default function SetupWizardPage() {
                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-white/5"><Checkbox id="can_insert" checked={permissions.can_insert} onCheckedChange={c => setPermissions({ ...permissions, can_insert: !!c })} /><div className="flex-1"><label htmlFor="can_insert" className="cursor-pointer">Insert new rows</label><p className="text-sm text-muted-foreground">AI can add data.</p></div></div>
                </div>
                <Alert><AlertCircle className="h-4 w-4" /><AlertDescription>Read and Insert are recommended.</AlertDescription></Alert>
-               <div className="flex gap-3"><Button variant="outline" onClick={() => setStep(3)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button><Button onClick={() => setStep(5)} disabled={!permissions.can_read || !permissions.can_insert} className="flex-1 bg-white text-black hover:bg-gray-200">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button></div>
+               <div className="flex gap-3"><Button variant="outline" onClick={() => setStep(3)} className="flex-1 bg-transparent hover:bg-white/10">Back</Button><Button onClick={() => setStep(5)} disabled={!permissions.can_read || !permissions.can_insert} className="flex-1 dark:bg-white dark:text-black dark:hover:bg-gray-200 bg-black text-white hover:bg-gray-800">Continue<ArrowRight className="ml-2 h-4 w-4" /></Button></div>
              </CardContent>
            </Card>
         )}
 
         {step === 5 && (
-            <Card className="border-border/50 bg-card/50 backdrop-blur-lg">
+            <Card className="border-border/50 bg-card/50 backdrop-blur-lg dark:text-white text-black">
             <CardHeader><CardTitle>You're All Set!</CardTitle><CardDescription>Your instance is ready to create chatbots.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -511,7 +525,7 @@ export default function SetupWizardPage() {
                   <div><p className="font-semibold">Supabase {supabaseUrl && supabaseKey ? "Configured" : "Skipped"}</p><p className="text-sm text-muted-foreground">{supabaseUrl && supabaseKey ? "Database connection is active." : "You can connect it later."}</p></div>
                 </div>
               </div>
-              <Button onClick={saveSetup} disabled={testing} className="w-full bg-white text-black hover:bg-gray-200" size="lg">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Finishing Up...</> : <>Go to Dashboard<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
+              <Button onClick={saveSetup} disabled={testing} className="w-full dark:bg-white dark:text-black dark:hover:bg-gray-200 bg-black text-white hover:bg-gray-800" size="lg">{testing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Finishing Up...</> : <>Go to Dashboard<ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
             </CardContent>
           </Card>
         )}

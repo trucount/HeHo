@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight, Loader2 } from "lucide-react"
+import { useTheme } from "next-themes"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -18,6 +19,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,15 +45,26 @@ export default function LoginPage() {
     }
   }
 
+  const videoSrc = resolvedTheme === 'dark' ? '/setupbg.mp4' : '/4990317-hd_1920_1080_30fps-negate.mp4';
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative">
-        <video autoPlay loop muted playsInline className="absolute z-0 w-full h-full object-cover" src="/setupbg.mp4" />
-        <div className="absolute z-10 w-full h-full bg-black/50"></div>
+      {mounted && (
+        <video
+          key={videoSrc}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute z-0 w-full h-full object-cover"
+          src={videoSrc}
+        />
+      )}
         <div className="w-full max-w-md z-20">
-        <Card className="border-border/50 bg-card/50 backdrop-blur-lg text-white">
+        <Card className="border-border/50 bg-card/50 backdrop-blur-lg dark:text-white text-black">
           <CardHeader>
             <CardTitle className="text-2xl">Sign In to HeHo</CardTitle>
-            <CardDescription className="text-gray-300">Enter your email and password to access your chatbots</CardDescription>
+            <CardDescription className="dark:text-gray-300 text-gray-800">Enter your email and password to access your chatbots</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
@@ -58,7 +76,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-background/50 border-border/50 text-white"
+                  className="bg-transparent dark:text-white text-black"
                 />
               </div>
 
@@ -70,7 +88,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="bg-background/50 border-border/50 text-white"
+                  className="bg-transparent dark:text-white text-black"
                 />
               </div>
 
@@ -78,7 +96,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-white text-black hover:bg-gray-200"
+                className="w-full dark:bg-white dark:hover:bg-gray-200 dark:text-black bg-black hover:bg-gray-800 text-white"
                 disabled={isLoading}
               >
                 {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
@@ -86,9 +104,9 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-gray-300">
+            <div className="mt-6 text-center text-sm dark:text-gray-300 text-gray-800">
               Don't have an account?{" "}
-              <Link href="/signup" className="text-white hover:underline font-semibold">
+              <Link href="/signup" className="dark:text-white text-black hover:underline font-semibold">
                 Sign up here
               </Link>
             </div>
