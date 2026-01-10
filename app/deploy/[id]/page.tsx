@@ -32,14 +32,14 @@ const MESSAGE_LIMIT = 100
 const TOKEN_LIMIT = 250000
 
 const THEMES = [
-  { value: 'twilight', label: 'Twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
-  { value: 'sunrise', label: 'Sunrise', color: 'bg-gradient-to-r from-amber-300 to-orange-500', textColor: 'text-white' },
-  { value: 'ocean', label: 'Ocean', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', textColor: 'text-white' },
-  { value: 'forest', label: 'Forest', color: 'bg-gradient-to-r from-emerald-500 to-lime-600', textColor: 'text-white' },
-  { value: 'grape', label: 'Grape', color: 'bg-gradient-to-r from-violet-500 to-purple-500', textColor: 'text-white' },
-  { value: 'rose', label: 'Rose', color: 'bg-gradient-to-r from-pink-500 to-rose-500', textColor: 'text-white' },
-  { value: 'sky', label: 'Sky', color: 'bg-gradient-to-r from-sky-400 to-cyan-300', textColor: 'text-black' },
-  { value: 'candy', label: 'Candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
+  { value: 'twilight', color: 'bg-gradient-to-r from-slate-900 to-slate-700', textColor: 'text-white' },
+  { value: 'sunrise', color: 'bg-gradient-to-r from-amber-300 to-orange-500', textColor: 'text-white' },
+  { value: 'ocean', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', textColor: 'text-white' },
+  { value: 'forest', color: 'bg-gradient-to-r from-emerald-500 to-lime-600', textColor: 'text-white' },
+  { value: 'grape', color: 'bg-gradient-to-r from-violet-500 to-purple-500', textColor: 'text-white' },
+  { value: 'rose', color: 'bg-gradient-to-r from-pink-500 to-rose-500', textColor: 'text-white' },
+  { value: 'sky', color: 'bg-gradient-to-r from-sky-400 to-cyan-300', textColor: 'text-black' },
+  { value: 'candy', color: 'bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400', textColor: 'text-black' },
 ]
 
 export default function SharedChatbotPage() {
@@ -51,81 +51,44 @@ export default function SharedChatbotPage() {
   const [error, setError] = useState<string | null>(null)
   const [usage, setUsage] = useState<Usage>({ messages: 0, tokens: 0 })
   const [limitReached, setLimitReached] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const supabase = createClient()
   const shareToken = params.id as string
 
   useEffect(() => {
-    const fetchChatbotInfo = async () => {
-      if (!shareToken) {
-        setError('Share token not found.')
-        setLoading(false)
-        return
-      }
-
+    const fetchChatbot = async () => {
       try {
-        const { data: shareData, error: shareError } = await supabase
+        const { data: share } = await supabase
           .from('chatbot_shares')
           .select('chatbot_id, expires_at')
           .eq('share_token', shareToken)
           .single()
 
-        if (shareError || !shareData) {
-          setError('Invalid or expired share link.')
-          setLoading(false)
-          return
-        }
-        
-        if (shareData.expires_at && new Date(shareData.expires_at) < new Date()) {
-            setError('This share link has expired.')
-            setLoading(false)
-            return
+        if (!share) throw new Error('Invalid share link')
+
+        if (share.expires_at && new Date(share.expires_at) < new Date()) {
+          throw new Error('This share link has expired')
         }
 
-        const { data: chatbotData, error: chatbotError } = await supabase
+        const { data: bot } = await supabase
           .from('chatbots')
           .select('id, name, model, theme, user_id')
-          .eq('id', shareData.chatbot_id)
+          .eq('id', share.chatbot_id)
           .single()
 
-        if (chatbotError || !chatbotData) {
-          setError('Chatbot not found.')
-          setLoading(false)
-          return
-        }
+        if (!bot) throw new Error('Chatbot not found')
 
-        setChatbot(chatbotData)
-
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const todayString = today.toISOString()
-
-        const { data: usageData, error: usageError } = await supabase
-          .from("usage")
-          .select("messages, tokens")
-          .eq("user_id", chatbotData.user_id)
-          .gte("created_at", todayString)
-
-        if (!usageError && usageData && usageData.length > 0) {
-          const totalMessages = usageData.reduce((acc, item) => acc + (item.messages || 0), 0)
-          const totalTokens = usageData.reduce((acc, item) => acc + (item.tokens || 0), 0)
-          setUsage({ messages: totalMessages, tokens: totalTokens })
-
-          if (totalMessages >= MESSAGE_LIMIT || totalTokens >= TOKEN_LIMIT) {
-            setLimitReached(true)
-          }
-        }
-
-      } catch (err) {
-        console.error('Error loading shared chatbot:', err)
-        setError('An unexpected error occurred.')
+        setChatbot(bot)
+      } catch (err: any) {
+        setError(err.message)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchChatbotInfo()
+    fetchChatbot()
   }, [shareToken, supabase])
 
   useEffect(() => {
@@ -137,162 +100,148 @@ export default function SharedChatbotPage() {
     if (!input.trim() || sending || limitReached) return
 
     setSending(true)
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input,
     }
 
-    const newMessages = [...messages, userMessage]
-    setMessages(newMessages)
+    const updatedMessages = [...messages, userMessage]
+    setMessages(updatedMessages)
     setInput('')
 
     try {
-      const response = await fetch('/api/chat', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatbotId: chatbot!.id,
           shareToken,
-          message: input,
-          history: newMessages.slice(0, -1),
+          message: userMessage.content,
+          history: messages,
           isPublic: true,
         }),
       })
 
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to get response from the server.')
+      const { reply, tokens } = await res.json()
+
+      setMessages(prev => [
+        ...prev,
+        { id: Date.now().toString(), role: 'assistant', content: reply },
+      ])
+
+      const newUsage = {
+        messages: usage.messages + 1,
+        tokens: usage.tokens + (tokens || 0),
       }
 
-      const { reply, tokens } = await response.json()
+      setUsage(newUsage)
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: reply,
-      }
-
-      setMessages(prev => [...prev, assistantMessage])
-
-      const updatedUsage = { messages: usage.messages + 1, tokens: usage.tokens + (tokens || 0) }
-      setUsage(updatedUsage)
-
-      if (updatedUsage.messages >= MESSAGE_LIMIT || updatedUsage.tokens >= TOKEN_LIMIT) {
+      if (newUsage.messages >= MESSAGE_LIMIT || newUsage.tokens >= TOKEN_LIMIT) {
         setLimitReached(true)
       }
-    } catch (error: any) {
-      console.error('Chat error:', error)
-      const errorMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        role: 'assistant',
-        content: `Sorry, an error occurred: ${error.message}`,
-      }
-      setMessages(prev => [...prev, errorMessage])
+    } catch (err: any) {
+      setMessages(prev => [
+        ...prev,
+        { id: Date.now().toString(), role: 'assistant', content: err.message },
+      ])
     } finally {
       setSending(false)
     }
   }
-  
-  const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0];
+
+  const theme = THEMES.find(t => t.value === chatbot?.theme) || THEMES[0]
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-100">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-700" />
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-100">
-        <Card className="p-6 m-4 text-center">
-          <h2 className="text-xl font-semibold text-red-600">Error</h2>
-          <p className="text-gray-700 mt-2">{error}</p>
+      <div className="h-screen flex items-center justify-center">
+        <Card className="p-6 text-center">
+          <h2 className="text-red-600 font-semibold">Error</h2>
+          <p className="mt-2">{error}</p>
         </Card>
       </div>
     )
   }
 
-  if (!chatbot) {
-    return null // Should not happen if loading and error states are handled
-  }
-
   return (
-    <div className={`h-screen w-full flex flex-col ${selectedTheme.color}`}>
-      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center">
-        <h1 className={`font-bold text-base sm:text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
-      </div>
+    <div className="h-screen flex flex-col bg-neutral-50">
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-2xl">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <h2 className={`text-xl sm:text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
-              <p className={`${selectedTheme.textColor}/80`}>
-                This is a shared chatbot. Your conversation is temporary.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-lg shadow-md ${ 
-                      message.role === 'user'
-                        ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
-                        : 'bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none'
-                    }`}>
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </div>
-              ))}
-              {sending && (
-                <div className="flex gap-4 justify-start">
-                  <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 border-b bg-white">
+        <div className="max-w-3xl mx-auto px-4 py-3 font-semibold">
+          {chatbot?.name}
+        </div>
+      </header>
+
+      {/* CHAT */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+          {messages.length === 0 && (
+            <div className="text-center text-neutral-500 mt-24">
+              <h2 className="text-xl font-semibold">How can I help you?</h2>
+              <p className="text-sm">This is a shared chatbot.</p>
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="border-t border-white/20 bg-black/20">
-        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4 max-w-2xl">
-        {limitReached ? (
-            <div className="text-center text-red-400 py-4">
-              <p>This chatbot has reached its daily usage limit. Please try again later.</p>
-            </div>
-          ) : (
-          <form onSubmit={handleSendMessage} className="flex gap-2 sm:gap-3">
-            <Input
-              placeholder={`Message ${chatbot.name}...`}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={sending}
-              className={`flex-1 bg-white/10 ${selectedTheme.textColor} placeholder-white/60 border-white/30 rounded-full focus:ring-2 focus:ring-white/50`}
-            />
-            <Button
-              type="submit"
-              disabled={sending || !input.trim()}
-              className={`p-3 rounded-full ${selectedTheme.color} ${selectedTheme.textColor} hover:opacity-90 disabled:opacity-50 transition-opacity`}
+          {messages.map(msg => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              <div
+                className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap ${
+                  msg.role === 'user'
+                    ? `${theme.color} ${theme.textColor} rounded-br-sm`
+                    : 'bg-white border rounded-bl-sm'
+                }`}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))}
+
+          {sending && (
+            <div className="flex justify-start">
+              <div className="bg-white border px-4 py-3 rounded-2xl">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </main>
+
+      {/* INPUT */}
+      <footer className="sticky bottom-0 border-t bg-white">
+        <div className="max-w-3xl mx-auto px-4 py-3">
+          <form onSubmit={handleSendMessage} className="flex gap-2">
+            <Input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder={`Message ${chatbot?.name}…`}
+              className="rounded-full"
+            />
+            <Button type="submit" disabled={sending}>
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </form>
-          )}
-          <p className="text-xs text-center text-white/50 pt-2">
-  Powered by <a href="https://heho.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">HeHo</a>.
-</p>
+
+          <p className="text-[11px] text-center text-neutral-400 mt-2">
+            Powered by <a href="https://heho.vercel.app" className="underline">HeHo</a>
+          </p>
         </div>
-      </div>
+      </footer>
     </div>
   )
 }
+
