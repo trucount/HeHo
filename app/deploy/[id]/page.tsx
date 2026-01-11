@@ -193,43 +193,39 @@ export default function SharedChatbotPage() {
       setSending(false)
     }
   }
-  
+
   const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0];
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-100">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-700" />
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-gray-100 dark:bg-black">
+      <Loader2 className="h-8 w-8 animate-spin text-gray-700 dark:text-gray-300" />
+    </div>
+  )
 
-  if (error) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-100">
-        <Card className="p-6 m-4 text-center">
-          <h2 className="text-xl font-semibold text-red-600">Error</h2>
-          <p className="text-gray-700 mt-2">{error}</p>
-        </Card>
-      </div>
-    )
-  }
+  if (error) return (
+    <div className="h-screen w-full flex items-center justify-center bg-gray-100 dark:bg-black">
+      <Card className="p-6 m-4 text-center">
+        <h2 className="text-xl font-semibold text-red-600">Error</h2>
+        <p className="text-gray-700 dark:text-gray-300 mt-2">{error}</p>
+      </Card>
+    </div>
+  )
 
   if (!chatbot) return null
 
   return (
-    <div className={`h-screen w-full flex flex-col ${selectedTheme.color}`}>
+    <div className="h-screen w-full flex flex-col bg-gray-100 dark:bg-black">
       {/* HEADER */}
-      <header className={`sticky top-0 z-50 border-b border-white/20 ${selectedTheme.color}`}>
+      <header className="sticky top-0 z-50 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black">
         <div className="max-w-2xl mx-auto px-4 py-3">
-          <h1 className={`font-bold text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
+          <h1 className="font-bold text-lg text-gray-900 dark:text-white">{chatbot.name}</h1>
         </div>
       </header>
 
       {/* CHAT AREA */}
       <main className="flex-1 overflow-y-auto px-4 py-4 sm:py-6 max-w-2xl mx-auto w-full">
         {messages.length === 0 ? (
-          <div className={`flex flex-col items-center justify-center h-full text-center py-12 ${selectedTheme.textColor}`}>
+          <div className="flex flex-col items-center justify-center h-full text-center py-12 text-gray-700 dark:text-gray-300">
             <h2 className="text-xl sm:text-2xl font-bold mb-2">Start Chatting</h2>
             <p className="opacity-80">This is a shared chatbot. Your conversation is temporary.</p>
           </div>
@@ -237,19 +233,21 @@ export default function SharedChatbotPage() {
           <div className="space-y-4">
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`px-4 py-3 rounded-lg max-w-[75%] whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
-                    : 'bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none'
-                }`}>
+                <div
+                  className={`px-4 py-3 rounded-lg max-w-[75%] whitespace-pre-wrap ${
+                    msg.role === 'user'
+                      ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30` // user messages themed
+                      : 'bg-white dark:bg-black text-black dark:text-white rounded-bl-none border border-gray-300 dark:border-gray-700' // assistant always white/black manually
+                  }`}
+                >
                   {msg.content}
                 </div>
               </div>
             ))}
             {sending && (
               <div className="flex justify-start">
-                <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <div className="bg-gray-300 dark:bg-gray-700 text-black dark:text-white px-4 py-3 rounded-lg rounded-bl-none">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               </div>
             )}
@@ -259,26 +257,26 @@ export default function SharedChatbotPage() {
       </main>
 
       {/* INPUT */}
-      <footer className="sticky bottom-0 border-t border-white/20 bg-black/20">
+      <footer className="sticky bottom-0 border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black">
         <div className="max-w-2xl mx-auto px-4 py-3 flex gap-2">
           <Input
             placeholder={`Message ${chatbot.name}...`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={sending || limitReached}
-            className={`flex-1 rounded-full bg-white/10 ${selectedTheme.textColor} placeholder-white/60 border-white/30 focus:ring-2 focus:ring-white/50`}
+            className="flex-1 rounded-full bg-white dark:bg-gray-900 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600"
           />
           <Button
             type="submit"
             onClick={handleSendMessage}
             disabled={sending || !input.trim() || limitReached}
-            className={`p-3 rounded-full ${selectedTheme.color} ${selectedTheme.textColor} hover:opacity-90 disabled:opacity-50 transition-opacity`}
+            className="p-3 rounded-full bg-gray-800 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </Button>
         </div>
-        <p className="text-xs text-center text-white/50 pt-2">
-          Powered by <a href="https://heho.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">HeHo</a>.
+        <p className="text-xs text-center text-gray-500 dark:text-gray-400 pt-2">
+          Powered by <a href="https://heho.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-700 dark:hover:text-gray-200">HeHo</a>.
         </p>
       </footer>
     </div>
