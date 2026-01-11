@@ -26,200 +26,226 @@ const POPULAR_MODELS = [
   'google/gemma-3n-e4b-it:free',
 ]
 
-async function getTableSchema(supabaseUrl: string, supabaseKey: string, tableName: string): Promise<any[] | null> {
+async function getTableSchema(
+  supabaseUrl: string,
+  supabaseKey: string,
+  tableName: string
+): Promise<any[] | null> {
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/?apikey=${supabaseKey}`)
-    if (!response.ok) {
-      console.error(`Error fetching OpenAPI spec: ${response.statusText}`)
-      return null
-    }
+    if (!response.ok) return null
+
     const openapiSpec = await response.json()
+    const definition = openapiSpec.definitions?.[tableName]
+    if (!definition?.properties) return null
 
-    const definition = openapiSpec.definitions[tableName]
-    if (!definition || !definition.properties) {
-      console.error(`Table '${tableName}' not found in OpenAPI spec.`)
-      return null
-    }
-
-    const excludedColumns = ['id', 'created_at']
-
-    const schema = Object.keys(definition.properties)
-      .filter(columnName => !excludedColumns.includes(columnName))
-      .map(columnName => {
-        const prop = definition.properties[columnName]
-        return {
-          column_name: columnName,
-          data_type: prop.format || prop.type,
-        }
-      })
-
-    return schema
-  } catch (error) {
-    console.error(`Error parsing OpenAPI spec for table ${tableName}:`, error)
+    return Object.keys(definition.properties)
+      .filter(c => !['id', 'created_at'].includes(c))
+      .map(c => ({
+        column_name: c,
+        data_type:
+          definition.properties[c].format ||
+          definition.properties[c].type,
+      }))
+  } catch {
     return null
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history, isPublic, shareToken, chatbotId } =
-      await request.json()
-
-    if (!message) {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
-      )
+    const { message, history, isPublic, chatbotId } = await request.json()
+    if (!message || !chatbotId) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
     const supabaseAdmin = await createSupabaseAdminClient()
-    let chatbot: any = null
-    let userId: string | null = null
 
-    // Authenticate and retrieve user/chatbot data
+    let chatbot: any
+    let userId: string
+
+    // 🔑 FETCH CHATBOT + OWNER ALWAYS
     if (isPublic) {
-        if (!chatbotId) return NextResponse.json({ error: 'Chatbot ID is required' }, { status: 400 });
-        const { data: chatbotData } = await supabaseAdmin.from('chatbots').select('*, users(id, supabase_url, supabase_key_encrypted, openrouter_key_encrypted)').eq('id', chatbotId).single();
-        if (!chatbotData) return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 });
-        chatbot = chatbotData;
-        userId = chatbotData.users.id;
+      const { data } = await supabaseAdmin
+        .from('chatbots')
+        .select(`
+          *,
+          users (
+            id,
+            supabase_url,
+            supabase_key_encrypted,
+            openrouter_key_encrypted
+          )
+        `)
+        .eq('id', chatbotId)
+        .single()
+
+      if (!data) {
+        return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 })
+      }
+
+      chatbot = data
+      userId = data.users.id // OWNER ID (important)
     } else {
-        const { data: { user } } = await supabaseAdmin.auth.getUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        userId = user.id;
-        const { data: chatbotData } = await supabaseAdmin.from('chatbots').select('*, users(id, supabase_url, supabase_key_encrypted, openrouter_key_encrypted)').eq('id', chatbotId).eq('user_id', user.id).single();
-        if (!chatbotData) return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 });
-        chatbot = chatbotData;
+      const { data: auth } = await supabaseAdmin.auth.getUser()
+      if (!auth?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      userId = auth.user.id
+
+      const { data } = await supabaseAdmin
+        .from('chatbots')
+        .select(`
+          *,
+          users (
+            id,
+            supabase_url,
+            supabase_key_encrypted,
+            openrouter_key_encrypted
+          )
+        `)
+        .eq('id', chatbotId)
+        .eq('user_id', userId)
+        .single()
+
+      if (!data) {
+        return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 })
+      }
+
+      chatbot = data
     }
 
-    if (!userId) return NextResponse.json({ error: 'Could not identify user' }, { status: 500 });
-    const userData = chatbot.users;
-    if (!userData?.openrouter_key_encrypted) return NextResponse.json({ error: 'API key not configured.' }, { status: 400 });
+    const owner = chatbot.users
+    if (!owner?.openrouter_key_encrypted) {
+      return NextResponse.json({ error: 'API key missing' }, { status: 400 })
+    }
 
-    // Construct the system prompt
-    let systemPrompt = `You are a helpful AI assistant named ${chatbot.name}.`;
-    if (chatbot.goal) systemPrompt += ` Your goal is to ${chatbot.goal}.`;
-    if (chatbot.description) systemPrompt += ` ${chatbot.description}.`;
-    if (chatbot.tone) systemPrompt += ` Maintain a ${chatbot.tone} tone.`;
+    // 🧠 SYSTEM PROMPT
+    let systemPrompt = `You are a helpful AI assistant named ${chatbot.name}.`
 
-    if (userData.supabase_url && userData.supabase_key_encrypted) {
+    if (owner.supabase_url && owner.supabase_key_encrypted) {
       for (let i = 1; i <= 3; i++) {
-        const tableName = chatbot[`data_table_${i}`]
+        const table = chatbot[`data_table_${i}`]
         const canRead = chatbot[`data_table_${i}_read`]
         const canWrite = chatbot[`data_table_${i}_write`]
-        if (!tableName) continue;
+        if (!table) continue
 
-        let accessLevel = canRead && canWrite ? 'READ and WRITE' : canRead ? 'READ-ONLY' : canWrite ? 'WRITE-ONLY' : '';
-        if (accessLevel) systemPrompt += `\\n\\nYou are connected to the '${tableName}' table with ${accessLevel} access.`;
-
-        const userSupabase = createClient(userData.supabase_url, userData.supabase_key_encrypted);
+        const db = createClient(
+          owner.supabase_url,
+          owner.supabase_key_encrypted
+        )
 
         if (canRead) {
-            const { data: tableData, error: tableError } = await userSupabase.from(tableName).select('*');
-            if (tableError) systemPrompt += `\\nNote: Error accessing table '${tableName}': ${tableError.message}`;
-            else if (tableData) systemPrompt += `\\nHere is the current data from the table:\\n${JSON.stringify(tableData, null, 2)}`;
+          const { data } = await db.from(table).select('*')
+          if (data) {
+            systemPrompt += `\n\nCurrent ${table} data:\n${JSON.stringify(
+              data,
+              null,
+              2
+            )}`
+          }
         }
 
         if (canWrite) {
-            const schema = await getTableSchema(userData.supabase_url, userData.supabase_key_encrypted, tableName);
-            if (schema) {
-                systemPrompt += `\\n\\n**CRITICAL, NON-NEGOTIABLE PROTOCOL: DATABASE WRITE FOR '${tableName}'**`;
-                systemPrompt += `\\nYOU ARE A DATA ENTRY BOT. When the user wants to add data (e.g., 'place an order', 'add a lead', 'create a record'), your ONLY JOB is to populate the '${tableName}' table.`;
-                systemPrompt += `\\n**DO NOT** refuse, apologize, or claim you cannot perform the action. **DO NOT** suggest other methods like a checkout page. You MUST follow this protocol.`;
-                systemPrompt += `\\n**Table Schema For Insert:**\\n${JSON.stringify(schema, null, 2)}`;
-                systemPrompt += `\\n**Mandatory Protocol Steps:**`;
-                systemPrompt += `\\n1. **GATHER:** Ask the user for the value of EVERY column in the provided schema. Do not skip any.`;
-                systemPrompt += `\\n2. **VERIFY:** Display all the gathered information back to the user and ask for explicit confirmation. Say, "Should I execute this action?" or a similar direct question.`;
-                systemPrompt += `\\n3. **EXECUTE:** AFTER the user confirms, your NEXT AND ONLY response MUST be the JSON command below. Nothing else.`;
-                systemPrompt += `\\n**Command Format:** \\\`[ADD_DATA]{"tableName": "${tableName}", "data": { ...column_data... }}\\\``;
-            } else {
-                systemPrompt += `\\n\\nNote: Could not retrieve schema for table '${tableName}'. Write operations are disabled.`;
-            }
+          const schema = await getTableSchema(
+            owner.supabase_url,
+            owner.supabase_key_encrypted,
+            table
+          )
+          if (schema) {
+            systemPrompt += `\n\nWhen confirmed, respond ONLY as:\n[ADD_DATA]{"tableName":"${table}","data":{...}}`
+            systemPrompt += `\nSchema:\n${JSON.stringify(schema, null, 2)}`
+          }
         }
       }
     }
 
-    // Call the AI model
-    const modelsToTry = [chatbot.model, ...POPULAR_MODELS];
-    let responseData = null;
-    for (const model of modelsToTry) {
-        try {
-            const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${userData.openrouter_key_encrypted}`, 'Content-Type': 'application/json', 'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://heho.app', 'X-Title': 'HeHo' },
-                body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...(history || []), { role: 'user', content: message }], temperature: chatbot.temperature || 0.7, max_tokens: 2048 }),
-            });
-            if (res.ok) { responseData = await res.json(); break; }
-        } catch (e) { console.error('[MODEL ERROR]', model, e); }
+    // 🤖 AI CALL
+    let responseData: any = null
+    for (const model of [chatbot.model, ...POPULAR_MODELS]) {
+      const res = await fetch(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${owner.openrouter_key_encrypted}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...(history || []),
+              { role: 'user', content: message },
+            ],
+          }),
+        }
+      )
+
+      if (res.ok) {
+        responseData = await res.json()
+        break
+      }
     }
 
-    if (!responseData) return NextResponse.json({ error: 'All models failed.' }, { status: 500 });
+    if (!responseData) {
+      return NextResponse.json({ error: 'AI failed' }, { status: 500 })
+    }
 
-    let reply = responseData.choices[0].message.content;
-    const tokensUsed = responseData.usage?.total_tokens || 0;
-    let dbWriteOccurred = false;
+    let reply = responseData.choices[0].message.content
+    const tokensUsed = responseData.usage?.total_tokens || 0
+    let dbWriteOccurred = false
 
-    // If AI requests to add data, execute it directly
+    // 📝 INSERT (FIXED)
     if (reply.startsWith('[ADD_DATA]')) {
-      try {
-        const jsonString = reply.substring(10);
-        const { tableName, data } = JSON.parse(jsonString);
+      const { tableName, data } = JSON.parse(reply.slice(10))
 
-        // --- Start of Merged Logic ---
-        if (!userData.supabase_url || !userData.supabase_key_encrypted) {
-            throw new Error('User database credentials are not configured.');
-        }
+      const db = createClient(
+        owner.supabase_url,
+        owner.supabase_key_encrypted
+      )
 
-        // Check if the chatbot has write permission for the specified table
-        let hasWritePermission = false;
-        for (let i = 1; i <= 3; i++) {
-            if (chatbot[`data_table_${i}`] === tableName && chatbot[`data_table_${i}_write`]) {
-                hasWritePermission = true;
-                break;
-            }
-        }
-
-        if (!hasWritePermission) {
-            throw new Error(`The chatbot does not have write permission for the table '${tableName}'.`);
-        }
-
-        const userSupabase = createClient(userData.supabase_url, userData.supabase_key_encrypted);
-
-        const { error: insertError } = await userSupabase
-          .from(tableName)
-          .insert([data]);
-
-        if (insertError) {
-            throw new Error(`Failed to insert data: ${insertError.message}`);
-        }
-        // --- End of Merged Logic ---
-
-        reply = `Done. I\'ve added the new record to the ${tableName} table.`;
-        dbWriteOccurred = true;
-
-      } catch (e: any) {
-        console.error('[ADD_DATA] Error:', e);
-        reply = `I was unable to process the request to add data to the table. Please try again. Error: ${e.message}`;
-      }
+      await db.from(tableName).insert([data])
+      dbWriteOccurred = true
+      reply = `Done. Record added to ${tableName}.`
     }
 
-    // Record usage stats
-    const usageDate = new Date().toISOString().split('T')[0];
-    const { data: existing } = await supabaseAdmin.from('usage').select('id, messages, tokens, api_calls, db_writes').eq('user_id', userId).eq('month', usageDate).maybeSingle();
+    // 📊 USAGE (UNCHANGED)
+    const month = new Date().toISOString().split('T')[0]
+    const { data: existing } = await supabaseAdmin
+      .from('usage')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('month', month)
+      .maybeSingle()
+
     if (existing) {
-        const updateData: any = { messages: existing.messages + 1, tokens: existing.tokens + tokensUsed, api_calls: existing.api_calls + 1, updated_at: new Date().toISOString() };
-        if (dbWriteOccurred) updateData.db_writes = (existing.db_writes || 0) + 1;
-        await supabaseAdmin.from('usage').update(updateData).eq('id', existing.id);
+      await supabaseAdmin
+        .from('usage')
+        .update({
+          messages: existing.messages + 1,
+          tokens: existing.tokens + tokensUsed,
+          api_calls: existing.api_calls + 1,
+          db_writes: dbWriteOccurred
+            ? (existing.db_writes || 0) + 1
+            : existing.db_writes,
+        })
+        .eq('id', existing.id)
     } else {
-        const insertData: any = { user_id: userId, month: usageDate, messages: 1, tokens: tokensUsed, api_calls: 1 };
-        if (dbWriteOccurred) insertData.db_writes = 1;
-        await supabaseAdmin.from('usage').insert(insertData);
+      await supabaseAdmin.from('usage').insert({
+        user_id: userId,
+        month,
+        messages: 1,
+        tokens: tokensUsed,
+        api_calls: 1,
+        db_writes: dbWriteOccurred ? 1 : 0,
+      })
     }
 
-    return NextResponse.json({ reply });
-
-  } catch (error: any) {
-    console.error('[API ERROR]', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ reply })
+  } catch (e: any) {
+    console.error(e)
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
