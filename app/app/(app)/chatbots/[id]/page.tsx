@@ -1,4 +1,3 @@
-
 'use client'
 
 import type React from "react"
@@ -198,9 +197,9 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col ${selectedTheme.color}`}>
+    <div className="h-screen w-screen flex flex-col bg-gray-100 dark:bg-black">
       {/* Header */}
-      <div className="p-4 border-b border-white/20 bg-black/30 flex justify-between items-center flex-wrap">
+      <div className="p-4 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black flex justify-between items-center flex-wrap">
         <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/app/chatbots">
                 <Button variant="ghost" size="icon" className={`${selectedTheme.textColor} hover:bg-white/10`}>
@@ -246,7 +245,7 @@ export default function ChatbotPage() {
                     className={`max-w-xs px-4 py-3 rounded-lg shadow-md ${ 
                       message.role === "user"
                         ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
-                        : "bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-bl-none"
+                        : "bg-white dark:bg-black text-black dark:text-white rounded-bl-none border border-gray-300 dark:border-gray-700"
                     }`}>
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
@@ -254,7 +253,7 @@ export default function ChatbotPage() {
               ))}
               {sending && (
                 <div className="flex gap-4 justify-start">
-                  <div className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-lg rounded-bl-none px-4 py-3">
+                  <div className="bg-white/20 dark:bg-gray-700 border border-white/30 dark:border-gray-700 text-white dark:text-white rounded-lg rounded-bl-none px-4 py-3">
                     <Loader2 className="h-4 w-4 animate-spin text-white" />
                   </div>
                 </div>
@@ -266,7 +265,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-white/20 bg-black/20">
+      <div className="border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black">
         <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4 max-w-2xl">
           {limitReached ? (
             <div className="text-center text-red-400 py-4">
@@ -279,12 +278,12 @@ export default function ChatbotPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={sending}
-                className={`flex-1 bg-white/10 ${selectedTheme.textColor} placeholder-white/60 border-white/30 rounded-full focus:ring-2 focus:ring-white/50`}
+                className={`flex-1 bg-white/10 dark:bg-gray-900 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-700 rounded-full focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600`}
               />
               <Button
                 type="submit"
-                disabled={sending || !input.trim()}
-                className={`p-3 rounded-full ${selectedTheme.color} ${selectedTheme.textColor} hover:opacity-90 disabled:opacity-50 transition-opacity`}
+                disabled={sending || !input.trim() || limitReached}
+                className="p-3 rounded-full bg-gray-800 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
               </Button>
