@@ -120,9 +120,11 @@ export function Header({ withSettings, hideNav, id }: { withSettings?: boolean, 
               </Link>
             </>
           )}
-           <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden">
-            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </Button>
+          {!hideNav && 
+            <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden">
+                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </Button>
+          }
         </div>
       </div>
       {isMenuOpen && (
