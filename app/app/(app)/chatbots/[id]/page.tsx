@@ -114,7 +114,7 @@ export default function ChatbotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
- const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || limitReached) return
 
@@ -175,58 +175,56 @@ export default function ChatbotPage() {
       setSending(false)
     }
   }
-  
-  const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0];
+
+  const selectedTheme = THEMES.find((t) => t.value === chatbot?.theme) || THEMES[0]
 
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+      <div className="h-full w-full flex items-center justify-center bg-background dark:bg-background-dark">
+        <Loader2 className="h-8 w-8 animate-spin text-foreground dark:text-foreground-dark" />
       </div>
     )
   }
 
   if (!chatbot) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-background">
+      <div className="h-full w-full flex items-center justify-center bg-background dark:bg-background-dark">
         <Card className="p-6">
-          <p className="text-foreground">Chatbot not found</p>
+          <p className="text-foreground dark:text-foreground-dark">Chatbot not found</p>
         </Card>
       </div>
     )
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-100 dark:bg-black">
+    <div className={`h-screen w-screen flex flex-col bg-gray-100 dark:bg-black`}>
       {/* Header */}
       <div className="p-4 border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black flex justify-between items-center flex-wrap">
         <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/app/chatbots">
-                <Button variant="ghost" size="icon" className={`${selectedTheme.textColor} hover:bg-white/10`}>
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-            </Link>
-            <div>
-                <h1 className={`font-bold text-base sm:text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
-            </div>
+          <Link href="/app/chatbots">
+            <Button variant="ghost" size="icon" className={`${selectedTheme.textColor} hover:bg-white/10 dark:hover:bg-white/10`}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className={`font-bold text-base sm:text-lg ${selectedTheme.textColor}`}>{chatbot.name}</h1>
         </div>
         <div className="flex items-center gap-2">
-            <Link href={`/app/chatbots/${chatbot.id}/settings?tab=config`}>
-                <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
-                    <Settings className="h-5 w-5" />
-                </Button>
-            </Link>
-            <Link href={`/app/chatbots/${chatbot.id}/settings?tab=deploy`}>
-                <Button variant="outline" size="icon" className={`${selectedTheme.textColor} bg-transparent border-white/20 hover:bg-white/10`}>
-                    <Rocket className="h-5 w-5" />
-                </Button>
-            </Link>
+          <Link href={`/app/chatbots/${chatbot.id}/settings?tab=config`}>
+            <Button variant="outline" size="icon" className={`${selectedTheme.textColor} border-white/20 hover:bg-white/10`}>
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
+          <Link href={`/app/chatbots/${chatbot.id}/settings?tab=deploy`}>
+            <Button variant="outline" size="icon" className={`${selectedTheme.textColor} border-white/20 hover:bg-white/10`}>
+              <Rocket className="h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto flex flex-col">
-        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-2xl flex-1">
+      <div className="flex-1 overflow-y-auto flex flex-col px-2 sm:px-4 py-4 sm:py-8">
+        <div className="mx-auto w-full max-w-2xl flex-1 flex flex-col">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12">
               <h2 className={`text-xl sm:text-2xl font-bold ${selectedTheme.textColor} mb-2`}>Start Chatting</h2>
@@ -235,18 +233,16 @@ export default function ChatbotPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
+                <div key={message.id} className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-xs px-4 py-3 rounded-lg shadow-md ${ 
+                    className={`max-w-xs px-4 py-3 rounded-lg shadow-md ${
                       message.role === "user"
                         ? `${selectedTheme.color} ${selectedTheme.textColor} rounded-br-none border border-white/30`
                         : "bg-white dark:bg-black text-black dark:text-white rounded-bl-none border border-gray-300 dark:border-gray-700"
-                    }`}>
+                    }`}
+                  >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
                 </div>
@@ -265,20 +261,20 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black">
-        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4 max-w-2xl">
+      <div className="border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-black fixed bottom-0 left-0 w-full py-2 sm:py-3">
+        <div className="container mx-auto px-2 sm:px-4 max-w-2xl flex">
           {limitReached ? (
-            <div className="text-center text-red-400 py-4">
+            <div className="text-center text-red-400 py-2 w-full">
               <p>You have reached your daily limit. Please upgrade for more usage.</p>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="flex gap-2 sm:gap-3">
+            <form onSubmit={handleSendMessage} className="flex gap-2 sm:gap-3 w-full">
               <Input
                 placeholder="Ask your chatbot..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={sending}
-                className={`flex-1 bg-white/10 dark:bg-gray-900 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-700 rounded-full focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600`}
+                className="flex-1 bg-white/90 dark:bg-gray-900 text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-700 rounded-full focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600"
               />
               <Button
                 type="submit"
