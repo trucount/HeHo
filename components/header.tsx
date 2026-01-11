@@ -25,7 +25,7 @@ export function Header({ withSettings, hideNav, id }: { withSettings?: boolean, 
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    window.location.href = "/"
+    window.location.href = "/login"
   }
 
   useEffect(() => {
