@@ -81,7 +81,6 @@ export default function ChatbotPage() {
 
         if (!data) return router.push("/app/dashboard")
         setChatbot(data)
-
       } catch {
         router.push("/app/dashboard")
       } finally {
@@ -161,17 +160,13 @@ export default function ChatbotPage() {
   /* ================= UI ================= */
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 dark:bg-black">
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-black overflow-hidden">
 
-      {/* HEADER */}
-      <div className="p-4 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center">
+      {/* HEADER – STICKY */}
+      <div className="sticky top-0 z-50 bg-gray-100 dark:bg-black border-b border-gray-300 dark:border-gray-700 p-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Link href="/app/chatbots">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-black dark:text-white"
-            >
+            <Button variant="ghost" size="icon" className="text-black dark:text-white">
               <ArrowLeft />
             </Button>
           </Link>
@@ -194,14 +189,14 @@ export default function ChatbotPage() {
         </div>
       </div>
 
-      {/* CHAT */}
-      <div className="flex-1 overflow-y-auto p-4 max-w-2xl mx-auto w-full">
+      {/* CHAT SCROLL AREA */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 pb-28 max-w-2xl mx-auto w-full">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col justify-center items-center">
-            <h2 className="text-xl font-bold text-black dark:text-white">
+          <div className="h-full flex flex-col items-center justify-center">
+            <h2 className="text-xl font-bold text-black dark:text-white mb-2">
               Start Chatting
             </h2>
-            <p className="text-black/70 dark:text-white/70">
+            <p className="text-black/70 dark:text-white/70 text-center">
               Chat with {chatbot.name}
             </p>
           </div>
@@ -213,7 +208,7 @@ export default function ChatbotPage() {
                 className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`px-4 py-3 rounded-lg max-w-xs ${
+                  className={`px-4 py-3 rounded-lg max-w-xs shadow ${
                     m.role === "user"
                       ? `${selectedTheme.color} ${selectedTheme.textColor}`
                       : "bg-white dark:bg-black text-black dark:text-white border border-gray-300 dark:border-gray-700"
@@ -228,16 +223,20 @@ export default function ChatbotPage() {
         )}
       </div>
 
-      {/* INPUT */}
-      <div className="border-t border-gray-300 dark:border-gray-700 p-3">
-        <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
+      {/* INPUT – FIXED BOTTOM */}
+      <div className="fixed bottom-0 left-0 w-full z-50 bg-gray-100 dark:bg-black border-t border-gray-300 dark:border-gray-700">
+        <form
+          onSubmit={handleSendMessage}
+          className="max-w-2xl mx-auto p-3 flex gap-2"
+        >
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask your chatbot..."
-            className="flex-1 text-black dark:text-white bg-white dark:bg-gray-900"
+            disabled={sending}
+            className="flex-1 bg-white dark:bg-gray-900 text-black dark:text-white"
           />
-          <Button type="submit" disabled={sending}>
+          <Button type="submit" disabled={sending || !input.trim()}>
             {sending ? <Loader2 className="animate-spin" /> : <Send />}
           </Button>
         </form>
