@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { useParams } from 'next/navigation'
 import { Send, Loader2, Sun, Moon } from 'lucide-react'
-import { HeHoLogo } from './heho-logo'
+import { HeHoLogo } from '@/components/heho-logo'
+
 
 /* ---------------- types ---------------- */
 
